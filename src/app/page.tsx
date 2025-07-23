@@ -4,13 +4,15 @@ import React, { useState, useRef, useTransition } from 'react';
 import Image from 'next/image';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { generateMarathiStory } from '@/ai/flows/generate-marathi-story';
+import { generateStory } from '@/ai/flows/generate-story';
 import { translateToEnglish } from '@/ai/flows/translate-to-english';
 import { generateImageFromStory } from '@/ai/flows/generate-image-from-story';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -40,7 +42,8 @@ const OutputSkeleton = () => (
 
 export default function SahayakAI() {
   const [prompt, setPrompt] = useState('');
-  const [marathiStory, setMarathiStory] = useState('');
+  const [language, setLanguage] = useState('Marathi');
+  const [generatedStory, setGeneratedStory] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [activeTab, setActiveTab] = useState('story');
@@ -56,16 +59,20 @@ export default function SahayakAI() {
       toast({ title: "Prompt is empty", description: "Please enter a prompt to generate a story.", variant: "destructive" });
       return;
     }
+    if (!language) {
+      toast({ title: "Language is empty", description: "Please enter a language to generate the story in.", variant: "destructive" });
+      return;
+    }
 
     startGenerating(async () => {
       try {
-        setMarathiStory('');
+        setGeneratedStory('');
         setImageUrl('');
         setEnglishTranslation('');
         
-        const storyResult = await generateMarathiStory({ prompt });
+        const storyResult = await generateStory({ prompt, language });
         if (storyResult && storyResult.story) {
-          setMarathiStory(storyResult.story);
+          setGeneratedStory(storyResult.story);
           setActiveTab('story');
           
           const imageResult = await generateImageFromStory({ story: storyResult.story });
@@ -85,7 +92,7 @@ export default function SahayakAI() {
   };
   
   const handleTranslate = () => {
-    const textToTranslate = marathiStory || prompt;
+    const textToTranslate = generatedStory || prompt;
      if (!textToTranslate) {
       toast({ title: "Nothing to translate", description: "Please enter a prompt or generate a story first.", variant: "destructive" });
       return;
@@ -151,23 +158,37 @@ export default function SahayakAI() {
         <Card className="shadow-lg border-2 border-accent/20">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Create Your Content</CardTitle>
-            <CardDescription>Enter a prompt in any language to generate a story with an illustration, or to translate text to English.</CardDescription>
+            <CardDescription>Enter a story idea and a language to generate a story with an illustration.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Textarea
-              placeholder="e.g., 'Write a short story about a farmer in a small village in Maharashtra finding a new way to water his crops.'"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              rows={4}
-              className="text-base"
-            />
+          <CardContent className="space-y-4">
+             <div>
+              <Label htmlFor="story-prompt">Story Idea</Label>
+              <Textarea
+                id="story-prompt"
+                placeholder="e.g., 'a farmer in a small village finding a new way to water his crops.'"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                rows={3}
+                className="text-base"
+              />
+            </div>
+            <div>
+              <Label htmlFor="language">Language</Label>
+              <Input
+                id="language"
+                placeholder="e.g., 'Marathi', 'Hindi', 'Spanish'"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="text-base"
+              />
+            </div>
           </CardContent>
           <CardFooter className="flex flex-wrap gap-4">
-            <Button onClick={handleGenerate} disabled={isLoading || !prompt}>
+            <Button onClick={handleGenerate} disabled={isLoading || !prompt || !language}>
               {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
               Generate Story & Image
             </Button>
-            <Button onClick={handleTranslate} disabled={isLoading || (!prompt && !marathiStory)} variant="secondary">
+            <Button onClick={handleTranslate} disabled={isLoading || (!prompt && !generatedStory)} variant="secondary">
               {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
               Translate to English
             </Button>
@@ -176,14 +197,14 @@ export default function SahayakAI() {
         
         {isGenerating && <OutputSkeleton />}
 
-        {!isGenerating && (marathiStory || englishTranslation) && (
+        {!isGenerating && (generatedStory || englishTranslation) && (
           <Card className="shadow-lg animate-in fade-in duration-500 border-2 border-accent/20">
             <CardHeader className="flex-col sm:flex-row justify-between items-start gap-4">
               <div>
                 <CardTitle className="font-headline text-2xl">Generated Content</CardTitle>
                 <CardDescription>View your generated story, image, and translation below.</CardDescription>
               </div>
-              {marathiStory && (
+              {generatedStory && (
                  <Button onClick={handleDownloadPdf}>
                     <FileDown className="mr-2 h-4 w-4" /> Download Story as PDF
                  </Button>
@@ -192,7 +213,7 @@ export default function SahayakAI() {
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="story" disabled={!marathiStory}>Story</TabsTrigger>
+                  <TabsTrigger value="story" disabled={!generatedStory}>Story</TabsTrigger>
                   <TabsTrigger value="translation" disabled={!englishTranslation}>Translation</TabsTrigger>
                 </TabsList>
                 <TabsContent value="story">
@@ -202,9 +223,9 @@ export default function SahayakAI() {
                         <Image src={imageUrl} alt="Generated illustration for the story" width={800} height={450} className="w-full object-cover" data-ai-hint="story illustration"/>
                       </div>
                     )}
-                    <h3 className="font-headline text-xl mb-4">Marathi Story</h3>
+                    <h3 className="font-headline text-xl mb-4">Story</h3>
                     <ScrollArea className="h-64">
-                       <p className="text-lg leading-relaxed whitespace-pre-wrap">{marathiStory}</p>
+                       <p className="text-lg leading-relaxed whitespace-pre-wrap">{generatedStory}</p>
                     </ScrollArea>
                   </div>
                 </TabsContent>
