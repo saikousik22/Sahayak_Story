@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useRef, useTransition } from 'react';
@@ -152,8 +153,7 @@ export default function SahayakAI() {
       const contentWidth = pageWidth - margin * 2;
       let yPos = margin;
       
-      pdf.addFont('/Alegreya-Regular.ttf', 'Alegreya', 'normal');
-      pdf.setFont('Alegreya');
+      pdf.setFont('Helvetica');
 
       for (let i = 0; i < storyParts.length; i++) {
         const part = storyParts[i];
@@ -165,15 +165,16 @@ export default function SahayakAI() {
 
         // Add Image
         try {
-          const img = new (window as any).Image();
+          // Using a regular Image object as `window.Image` can be problematic in some environments
+          const img = document.createElement('img');
           img.crossOrigin = 'Anonymous';
           
           const imgPromise = new Promise<{width: number, height: number}>((resolve, reject) => {
-             img.onload = () => resolve({width: img.width, height: img.height});
+             img.onload = () => resolve({width: img.naturalWidth, height: img.naturalHeight});
              img.onerror = reject;
+             img.src = part.image;
           });
           
-          img.src = part.image;
           const {width: imgWidth, height: imgHeight} = await imgPromise;
 
           const aspectRatio = imgWidth / imgHeight;
@@ -328,5 +329,3 @@ export default function SahayakAI() {
     </main>
   );
 }
-
-    
