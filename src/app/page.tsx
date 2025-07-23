@@ -136,7 +136,7 @@ export default function SahayakAI() {
         const translationResult = await translateToEnglish({ text: textToTranslate });
         if (translationResult && translationResult.translation) {
           setEnglishTranslation(translationResult.translation);
-          setActiveTab('translation');
+setActiveTab('translation');
         } else {
           toast({ title: "Translation Failed", description: "Could not translate the text.", variant: "destructive" });
         }
@@ -160,7 +160,8 @@ export default function SahayakAI() {
       const margin = 15;
       const contentWidth = pageWidth - margin * 2;
       let yPos = margin;
-      
+
+      // Use a font that supports a wide range of characters
       pdf.setFont('Helvetica');
 
       for (let i = 0; i < storyParts.length; i++) {
@@ -200,11 +201,14 @@ export default function SahayakAI() {
 
         // Add Part Title
         pdf.setFontSize(16);
+        // Use a generic font for the title as well
+        pdf.setFont('Helvetica', 'bold');
         pdf.text(part.part, pageWidth / 2, yPos, { align: 'center' });
         yPos += 10;
         
         // Add Story Text
         pdf.setFontSize(12);
+        pdf.setFont('Helvetica', 'normal');
         const textLines = pdf.splitTextToSize(part.text, contentWidth);
         
         for (const line of textLines) {
