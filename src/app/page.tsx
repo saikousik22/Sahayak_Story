@@ -34,7 +34,7 @@ const OutputSkeleton = () => (
     <CardContent>
       <Skeleton className="h-10 w-48 mb-4" />
       <div className="space-y-4">
-        <Skeleton className="h-[400px] w-full rounded-lg" />
+        <Skeleton className="h-[338px] w-full rounded-lg" />
         <Skeleton className="h-6 w-full" />
         <Skeleton className="h-6 w-5/6" />
         <Skeleton className="h-6 w-2/3" />
@@ -334,8 +334,8 @@ setActiveTab('translation');
                             <Image 
                               src={part.image} 
                               alt={`Illustration for the ${part.part.toLowerCase()} of the story`} 
-                              width={800} 
-                              height={450} 
+                              width={600} 
+                              height={338} 
                               className="w-full object-cover rounded-lg mb-4"
                               data-ai-hint={`story ${part.part.toLowerCase()}`} />
                             <div ref={el => storyPartRefs.current[index] = el} className="p-1">

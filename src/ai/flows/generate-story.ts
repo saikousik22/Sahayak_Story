@@ -34,7 +34,7 @@ const prompt = ai.definePrompt({
   name: 'generateStoryPrompt',
   input: {schema: GenerateStoryInputSchema},
   output: {schema: GenerateStoryOutputSchema},
-  prompt: `You are a master storyteller. Generate a culturally relevant, descriptive, detailed, and elaborate story in {{language}} based on the following prompt. The story should be tailored for a student in {{grade}}. Adjust the complexity, vocabulary, and themes accordingly.
+  prompt: `You are a master storyteller. Generate a culturally relevant, descriptive, detailed, and elaborate story in {{language}} based on the following prompt. The story should be substantial in length, with well-developed characters and a clear plot. The story should be tailored for a student in {{grade}}. Adjust the complexity, vocabulary, and themes accordingly.
   
 Prompt: {{prompt}}`,
 });
