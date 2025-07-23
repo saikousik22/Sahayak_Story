@@ -316,7 +316,7 @@ setActiveTab('translation');
                               height={450} 
                               className="w-full object-cover rounded-lg mb-4"
                               data-ai-hint={`story ${part.part.toLowerCase()}`} />
-                            <div ref={el => storyPartRefs.current[index] = el} className="bg-background p-1">
+                            <div ref={el => storyPartRefs.current[index] = el} className="p-1">
                               <h3 className="font-headline text-xl mb-2">{part.part}</h3>
                               <p className="text-lg leading-relaxed whitespace-pre-wrap">{part.text}</p>
                             </div>

@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -32,7 +33,7 @@ const prompt = ai.definePrompt({
   name: 'generateStoryPrompt',
   input: {schema: GenerateStoryInputSchema},
   output: {schema: GenerateStoryOutputSchema},
-  prompt: `You are a storyteller. Generate a culturally relevant story in {{language}} based on the following prompt:
+  prompt: `You are a master storyteller. Generate a culturally relevant, descriptive, detailed, and elaborate story in {{language}} based on the following prompt:
   {{prompt}}`,
 });
 
