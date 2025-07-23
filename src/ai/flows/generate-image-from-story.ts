@@ -19,10 +19,10 @@ export type GenerateImageFromStoryInput = z.infer<
 >;
 
 const GenerateImageFromStoryOutputSchema = z.object({
-  image: z
-    .string()
+  images: z
+    .array(z.string())
     .describe(
-      "The generated image as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "The generated images as data URIs that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
     ),
 });
 export type GenerateImageFromStoryOutput = z.infer<
@@ -35,13 +35,6 @@ export async function generateImageFromStory(
   return generateImageFromStoryFlow(input);
 }
 
-const generateImagePrompt = ai.definePrompt({
-  name: 'generateImagePrompt',
-  input: {schema: GenerateImageFromStoryInputSchema},
-  output: {schema: GenerateImageFromStoryOutputSchema},
-  prompt: `Generate an illustration based on the following story:\n\n{{{story}}}`,
-});
-
 const generateImageFromStoryFlow = ai.defineFlow(
   {
     name: 'generateImageFromStoryFlow',
@@ -49,14 +42,25 @@ const generateImageFromStoryFlow = ai.defineFlow(
     outputSchema: GenerateImageFromStoryOutputSchema,
   },
   async input => {
-    const {media} = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-preview-image-generation',
-      prompt: input.story,
-      config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-      },
-    });
+    const imagePrompts = [
+      `An illustration for the beginning of this story: ${input.story}`,
+      `An illustration for the middle of this story: ${input.story}`,
+      `An illustration for the end of this story: ${input.story}`,
+    ];
 
-    return {image: media!.url!};
+    const imagePromises = imagePrompts.map(prompt =>
+      ai.generate({
+        model: 'googleai/gemini-2.0-flash-preview-image-generation',
+        prompt: prompt,
+        config: {
+          responseModalities: ['TEXT', 'IMAGE'],
+        },
+      })
+    );
+
+    const imageResults = await Promise.all(imagePromises);
+    const images = imageResults.map(result => result.media!.url!);
+
+    return {images};
   }
 );

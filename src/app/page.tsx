@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Languages, Loader2, FileDown, BookOpen } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 const OutputSkeleton = () => (
   <Card className="shadow-lg">
@@ -45,7 +46,7 @@ export default function SahayakAI() {
   const [language, setLanguage] = useState('Marathi');
   const [generatedStory, setGeneratedStory] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('story');
   
   const [isGenerating, startGenerating] = useTransition();
@@ -67,7 +68,7 @@ export default function SahayakAI() {
     startGenerating(async () => {
       try {
         setGeneratedStory('');
-        setImageUrl('');
+        setImageUrls([]);
         setEnglishTranslation('');
         
         const storyResult = await generateStory({ prompt, language });
@@ -76,8 +77,8 @@ export default function SahayakAI() {
           setActiveTab('story');
           
           const imageResult = await generateImageFromStory({ story: storyResult.story });
-          if (imageResult && imageResult.image) {
-            setImageUrl(imageResult.image);
+          if (imageResult && imageResult.images && imageResult.images.length > 0) {
+            setImageUrls(imageResult.images);
           } else {
              toast({ title: "Image Generation Failed", description: "Could not generate an image for the story.", variant: "destructive" });
           }
@@ -218,10 +219,18 @@ export default function SahayakAI() {
                 </TabsList>
                 <TabsContent value="story">
                   <div ref={storyContentRef} className="mt-4 p-6 rounded-lg bg-background">
-                    {imageUrl && (
-                      <div className="mb-6 overflow-hidden rounded-lg border shadow-md">
-                        <Image src={imageUrl} alt="Generated illustration for the story" width={800} height={450} className="w-full object-cover" data-ai-hint="story illustration"/>
-                      </div>
+                    {imageUrls.length > 0 && (
+                      <Carousel className="mb-6 overflow-hidden rounded-lg border shadow-md">
+                        <CarouselContent>
+                          {imageUrls.map((url, index) => (
+                            <CarouselItem key={index}>
+                              <Image src={url} alt={`Generated illustration for the story ${index + 1}`} width={800} height={450} className="w-full object-cover" data-ai-hint="story illustration" />
+                            </CarouselItem>
+                          ))}
+                        </CarouselContent>
+                        <CarouselPrevious />
+                        <CarouselNext />
+                      </Carousel>
                     )}
                     <h3 className="font-headline text-xl mb-4">Story</h3>
                     <ScrollArea className="h-64">
