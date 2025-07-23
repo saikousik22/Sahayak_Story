@@ -3,7 +3,6 @@
 import React, { useState, useRef, useTransition } from 'react';
 import Image from 'next/image';
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import { generateStory } from '@/ai/flows/generate-story';
 import { translateToEnglish } from '@/ai/flows/translate-to-english';
 import { generateImageFromStory, GenerateImageFromStoryInput } from '@/ai/flows/generate-image-from-story';
@@ -20,7 +19,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Languages, Loader2, FileDown, BookOpen } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 const OutputSkeleton = () => (
   <Card className="shadow-lg">
@@ -141,29 +139,80 @@ export default function SahayakAI() {
   }
 
   const handleDownloadPdf = async () => {
-    const element = storyContentRef.current;
-    if (!element) {
-      toast({ title: "Error", description: "Cannot find content to download.", variant: "destructive" });
+    if (storyParts.length === 0) {
+      toast({ title: "Error", description: "No story to download.", variant: "destructive" });
       return;
     }
 
     try {
-      const canvas = await html2canvas(element, { 
-        backgroundColor: null,
-        scale: 2,
-        useCORS: true 
-      });
-      const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = 15;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2;
+      let yPos = margin;
+
+      for (const part of storyParts) {
+        // Check if there is enough space for the image and some text
+        if (yPos + 80 > pageHeight - margin) {
+          pdf.addPage();
+          yPos = margin;
+        }
+
+        // Add Image
+        try {
+          // Use a promise to handle image loading
+          const getImageData = (url: string) => {
+            return new Promise<{ data: string, width: number, height: number }>((resolve, reject) => {
+              const img = new (window as any).Image();
+              img.crossOrigin = 'Anonymous';
+              img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0);
+                resolve({ data: canvas.toDataURL('image/png'), width: img.width, height: img.height });
+              };
+              img.onerror = (err) => reject(err);
+              img.src = url;
+            });
+          };
+
+          const { data: imgData, width: imgWidth, height: imgHeight } = await getImageData(part.image);
+          const aspectRatio = imgWidth / imgHeight;
+          const imgDisplayHeight = contentWidth / aspectRatio;
+          pdf.addImage(imgData, 'PNG', margin, yPos, contentWidth, imgDisplayHeight);
+          yPos += imgDisplayHeight + 5; // Add some space after the image
+        } catch(e) {
+            console.error("Error adding image to PDF", e);
+            // Continue without the image if it fails
+        }
+
+        // Add Part Title (Beginning, Middle, End)
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(16);
+        const titleLines = pdf.splitTextToSize(part.part, contentWidth);
+        pdf.text(titleLines, margin, yPos);
+        yPos += (titleLines.length * 7) + 2;
+
+        // Add Story Text
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(12);
+        const textLines = pdf.splitTextToSize(part.text, contentWidth);
+
+        for (const line of textLines) {
+           if (yPos > pageHeight - margin) {
+              pdf.addPage();
+              yPos = margin;
+           }
+           pdf.text(line, margin, yPos);
+           yPos += 7; // Line height
+        }
+
+        yPos += 10; // Extra space between sections
+      }
       
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
       pdf.save('sahayak-ai-story.pdf');
     } catch (error) {
        console.error("PDF download failed:", error);
