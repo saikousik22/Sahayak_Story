@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -49,6 +50,7 @@ interface StoryPart {
 
 export default function SahayakAI() {
   const [prompt, setPrompt] = useState('');
+  const [language, setLanguage] = useState('Marathi');
   const [generatedStory, setGeneratedStory] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
   const [storyParts, setStoryParts] = useState<StoryPart[]>([]);
@@ -65,6 +67,10 @@ export default function SahayakAI() {
       toast({ title: "Prompt is empty", description: "Please enter a prompt to generate a story.", variant: "destructive" });
       return;
     }
+    if (!language) {
+      toast({ title: "Language is empty", description: "Please enter a language.", variant: "destructive" });
+      return;
+    }
 
     startGenerating(async () => {
       try {
@@ -72,7 +78,7 @@ export default function SahayakAI() {
         setStoryParts([]);
         setEnglishTranslation('');
         
-        const storyResult = await generateStory({ prompt });
+        const storyResult = await generateStory({ prompt, language });
         if (storyResult && storyResult.story) {
           setGeneratedStory(storyResult.story);
           setActiveTab('story');
@@ -81,10 +87,18 @@ export default function SahayakAI() {
 
           if (splitStoryResult) {
             const parts: SplitStoryOutput = splitStoryResult;
+
+            // Translate parts to English for better image generation
+            const [beginningEn, middleEn, endEn] = await Promise.all([
+                translateToEnglish({text: parts.beginning}),
+                translateToEnglish({text: parts.middle}),
+                translateToEnglish({text: parts.end})
+            ]);
+
             const imagePrompts: GenerateImageFromStoryInput[] = [
-              { story: parts.beginning, part: 'Beginning' },
-              { story: parts.middle, part: 'Middle' },
-              { story: parts.end, part: 'End' }
+              { story: beginningEn.translation, part: 'Beginning' },
+              { story: middleEn.translation, part: 'Middle' },
+              { story: endEn.translation, part: 'End' }
             ];
 
             const imagePromises = imagePrompts.map(prompt => generateImageFromStory(prompt));
@@ -223,7 +237,7 @@ export default function SahayakAI() {
         <Card className="shadow-lg border-2 border-accent/20">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Create Your Content</CardTitle>
-            <CardDescription>Enter a story idea to generate a story with illustrations.</CardDescription>
+            <CardDescription>Enter a story idea and language to generate a story with illustrations.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              <div>
@@ -237,9 +251,19 @@ export default function SahayakAI() {
                 className="text-base"
               />
             </div>
+            <div>
+              <Label htmlFor="language">Language</Label>
+              <Input
+                id="language"
+                placeholder="e.g., 'Marathi'"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="text-base"
+              />
+            </div>
           </CardContent>
           <CardFooter className="flex flex-wrap gap-4">
-            <Button onClick={handleGenerate} disabled={isLoading || !prompt}>
+            <Button onClick={handleGenerate} disabled={isLoading || !prompt || !language}>
               {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
               Generate Story & Images
             </Button>
