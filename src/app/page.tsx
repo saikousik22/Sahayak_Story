@@ -4,6 +4,7 @@
 import React, { useState, useRef, useTransition } from 'react';
 import Image from 'next/image';
 import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import { generateStory } from '@/ai/flows/generate-story';
 import { translateToEnglish } from '@/ai/flows/translate-to-english';
 import { generateImageFromStory, GenerateImageFromStoryInput } from '@/ai/flows/generate-image-from-story';
@@ -59,7 +60,7 @@ export default function SahayakAI() {
   const [isGenerating, startGenerating] = useTransition();
   const [isTranslating, startTranslating] = useTransition();
 
-  const storyContentRef = useRef<HTMLDivElement>(null);
+  const storyPartRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { toast } = useToast();
 
   const handleGenerate = () => {
@@ -161,18 +162,16 @@ setActiveTab('translation');
       const contentWidth = pageWidth - margin * 2;
       let yPos = margin;
 
-      // Use a font that supports a wide range of characters
-      pdf.setFont('Helvetica');
-
       for (let i = 0; i < storyParts.length; i++) {
         const part = storyParts[i];
+        const textElement = storyPartRefs.current[i];
 
         if (i > 0) {
            pdf.addPage();
            yPos = margin;
         }
 
-        // Add Image
+        // Add Illustration Image
         try {
           const img = document.createElement('img');
           img.crossOrigin = 'Anonymous';
@@ -196,28 +195,33 @@ setActiveTab('translation');
           pdf.addImage(img, 'PNG', margin, yPos, contentWidth, imgDisplayHeight);
           yPos += imgDisplayHeight + 5;
         } catch(e) {
-            console.error("Error adding image to PDF", e);
+            console.error("Error adding illustration to PDF", e);
         }
 
-        // Add Part Title
-        pdf.setFontSize(16);
-        // Use a generic font for the title as well
-        pdf.setFont('Helvetica', 'bold');
-        pdf.text(part.part, pageWidth / 2, yPos, { align: 'center' });
-        yPos += 10;
-        
-        // Add Story Text
-        pdf.setFontSize(12);
-        pdf.setFont('Helvetica', 'normal');
-        const textLines = pdf.splitTextToSize(part.text, contentWidth);
-        
-        for (const line of textLines) {
-           if (yPos > pageHeight - margin) {
+        // Add Text as an image
+        if (textElement) {
+          try {
+            const canvas = await html2canvas(textElement, {
+              backgroundColor: null, // Transparent background
+              scale: 2, // Higher resolution
+            });
+            const textImgData = canvas.toDataURL('image/png');
+            const textImgWidth = canvas.width;
+            const textImgHeight = canvas.height;
+            const textAspectRatio = textImgWidth / textImgHeight;
+            const textImgDisplayHeight = contentWidth / textAspectRatio;
+
+            if (yPos + textImgDisplayHeight > pageHeight - margin) {
               pdf.addPage();
               yPos = margin;
-           }
-           pdf.text(line, margin, yPos);
-           yPos += 7;
+            }
+
+            pdf.addImage(textImgData, 'PNG', margin, yPos, contentWidth, textImgDisplayHeight);
+            yPos += textImgDisplayHeight + 5;
+
+          } catch (e) {
+            console.error("Error adding text screenshot to PDF", e);
+          }
         }
       }
       
@@ -300,7 +304,7 @@ setActiveTab('translation');
                   <TabsTrigger value="translation" disabled={!englishTranslation}>Translation</TabsTrigger>
                 </TabsList>
                 <TabsContent value="story">
-                  <div ref={storyContentRef} className="mt-4 p-6 rounded-lg bg-background">
+                  <div className="mt-4 p-6 rounded-lg bg-background">
                     {storyParts.length > 0 ? (
                       <div className="space-y-8">
                         {storyParts.map((part, index) => (
@@ -312,8 +316,10 @@ setActiveTab('translation');
                               height={450} 
                               className="w-full object-cover rounded-lg mb-4"
                               data-ai-hint={`story ${part.part.toLowerCase()}`} />
-                            <h3 className="font-headline text-xl mb-2">{part.part}</h3>
-                            <p className="text-lg leading-relaxed whitespace-pre-wrap">{part.text}</p>
+                            <div ref={el => storyPartRefs.current[index] = el} className="bg-background p-1">
+                              <h3 className="font-headline text-xl mb-2">{part.part}</h3>
+                              <p className="text-lg leading-relaxed whitespace-pre-wrap">{part.text}</p>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -339,4 +345,5 @@ setActiveTab('translation');
       </div>
     </main>
   );
-}
+
+    
