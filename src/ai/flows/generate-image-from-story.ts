@@ -43,7 +43,7 @@ const generateImageFromStoryFlow = ai.defineFlow(
     outputSchema: GenerateImageFromStoryOutputSchema,
   },
   async input => {
-    const imagePrompt = `An illustration for the ${input.part} of this story: ${input.story}`;
+    const imagePrompt = `Create a cinematic, visually rich illustration for the ${input.part} of this story. Do not include any text in the image. Focus on the visual details described in the following passage: ${input.story}`;
 
     const result = await ai.generate({
       model: 'googleai/gemini-2.0-flash-preview-image-generation',
