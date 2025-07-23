@@ -47,12 +47,13 @@ const generateImageFromStoryFlow = ai.defineFlow(
     outputSchema: GenerateImageFromStoryOutputSchema,
   },
   async input => {
-    const imagePrompt = `Create a beautiful and relevant illustration for the following part of a story. The image should be in a cinematic, visually rich style, capturing the essence of the text.
+    const imagePrompt = `Your primary instruction is to create an image. This image MUST NOT contain any text, letters, or words. This is the most important rule.
 
-**Crucially, the image MUST NOT contain any text, letters, or words whatsoever.**
+Create a beautiful, cinematic, and culturally relevant illustration for the following part of a story:
+Part: ${input.part}
+Story Text: "${input.story}"
 
-Story Text:
-"${input.story}"`;
+Again, do not include any text in the image. The image should be a pure visual representation.`;
 
     const result = await ai.generate({
       model: 'googleai/gemini-2.0-flash-preview-image-generation',
