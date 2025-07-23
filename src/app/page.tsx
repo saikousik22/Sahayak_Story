@@ -151,66 +151,62 @@ export default function SahayakAI() {
       const margin = 15;
       const contentWidth = pageWidth - margin * 2;
       let yPos = margin;
+      
+      pdf.addFont('/Alegreya-Regular.ttf', 'Alegreya', 'normal');
+      pdf.setFont('Alegreya');
 
-      for (const part of storyParts) {
-        // Check if there is enough space for the image and some text
-        if (yPos + 80 > pageHeight - margin) {
-          pdf.addPage();
-          yPos = margin;
+      for (let i = 0; i < storyParts.length; i++) {
+        const part = storyParts[i];
+
+        if (i > 0) {
+           pdf.addPage();
+           yPos = margin;
         }
 
         // Add Image
         try {
-          // Use a promise to handle image loading
-          const getImageData = (url: string) => {
-            return new Promise<{ data: string, width: number, height: number }>((resolve, reject) => {
-              const img = new (window as any).Image();
-              img.crossOrigin = 'Anonymous';
-              img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx?.drawImage(img, 0, 0);
-                resolve({ data: canvas.toDataURL('image/png'), width: img.width, height: img.height });
-              };
-              img.onerror = (err) => reject(err);
-              img.src = url;
-            });
-          };
+          const img = new (window as any).Image();
+          img.crossOrigin = 'Anonymous';
+          
+          const imgPromise = new Promise<{width: number, height: number}>((resolve, reject) => {
+             img.onload = () => resolve({width: img.width, height: img.height});
+             img.onerror = reject;
+          });
+          
+          img.src = part.image;
+          const {width: imgWidth, height: imgHeight} = await imgPromise;
 
-          const { data: imgData, width: imgWidth, height: imgHeight } = await getImageData(part.image);
           const aspectRatio = imgWidth / imgHeight;
           const imgDisplayHeight = contentWidth / aspectRatio;
-          pdf.addImage(imgData, 'PNG', margin, yPos, contentWidth, imgDisplayHeight);
-          yPos += imgDisplayHeight + 5; // Add some space after the image
+
+          if (yPos + imgDisplayHeight > pageHeight - margin) {
+            pdf.addPage();
+            yPos = margin;
+          }
+          
+          pdf.addImage(img, 'PNG', margin, yPos, contentWidth, imgDisplayHeight);
+          yPos += imgDisplayHeight + 5;
         } catch(e) {
             console.error("Error adding image to PDF", e);
-            // Continue without the image if it fails
         }
 
-        // Add Part Title (Beginning, Middle, End)
-        pdf.setFont('helvetica', 'bold');
+        // Add Part Title
         pdf.setFontSize(16);
-        const titleLines = pdf.splitTextToSize(part.part, contentWidth);
-        pdf.text(titleLines, margin, yPos);
-        yPos += (titleLines.length * 7) + 2;
-
+        pdf.text(part.part, pageWidth / 2, yPos, { align: 'center' });
+        yPos += 10;
+        
         // Add Story Text
-        pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(12);
         const textLines = pdf.splitTextToSize(part.text, contentWidth);
-
+        
         for (const line of textLines) {
            if (yPos > pageHeight - margin) {
               pdf.addPage();
               yPos = margin;
            }
            pdf.text(line, margin, yPos);
-           yPos += 7; // Line height
+           yPos += 7;
         }
-
-        yPos += 10; // Extra space between sections
       }
       
       pdf.save('sahayak-ai-story.pdf');
@@ -332,3 +328,5 @@ export default function SahayakAI() {
     </main>
   );
 }
+
+    
