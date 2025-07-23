@@ -15,6 +15,7 @@ import {z} from 'genkit';
 const GenerateStoryInputSchema = z.object({
   prompt: z.string().describe('The prompt for the story.'),
   language: z.string().describe('The language for the story to be generated in.'),
+  grade: z.string().describe('The grade level of the student the story is for.'),
 });
 export type GenerateStoryInput = z.infer<typeof GenerateStoryInputSchema>;
 
@@ -33,8 +34,9 @@ const prompt = ai.definePrompt({
   name: 'generateStoryPrompt',
   input: {schema: GenerateStoryInputSchema},
   output: {schema: GenerateStoryOutputSchema},
-  prompt: `You are a master storyteller. Generate a culturally relevant, descriptive, detailed, and elaborate story in {{language}} based on the following prompt:
-  {{prompt}}`,
+  prompt: `You are a master storyteller. Generate a culturally relevant, descriptive, detailed, and elaborate story in {{language}} based on the following prompt. The story should be tailored for a student in {{grade}}. Adjust the complexity, vocabulary, and themes accordingly.
+  
+Prompt: {{prompt}}`,
 });
 
 const generateStoryFlow = ai.defineFlow(

@@ -52,6 +52,7 @@ interface StoryPart {
 export default function SahayakAI() {
   const [prompt, setPrompt] = useState('');
   const [language, setLanguage] = useState('Marathi');
+  const [grade, setGrade] = useState('5th Grade');
   const [generatedStory, setGeneratedStory] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
   const [storyParts, setStoryParts] = useState<StoryPart[]>([]);
@@ -72,6 +73,10 @@ export default function SahayakAI() {
       toast({ title: "Language is empty", description: "Please enter a language.", variant: "destructive" });
       return;
     }
+     if (!grade) {
+      toast({ title: "Grade is empty", description: "Please enter a grade level.", variant: "destructive" });
+      return;
+    }
 
     startGenerating(async () => {
       try {
@@ -79,7 +84,7 @@ export default function SahayakAI() {
         setStoryParts([]);
         setEnglishTranslation('');
         
-        const storyResult = await generateStory({ prompt, language });
+        const storyResult = await generateStory({ prompt, language, grade });
         if (storyResult && storyResult.story) {
           setGeneratedStory(storyResult.story);
           setActiveTab('story');
@@ -264,19 +269,31 @@ setActiveTab('translation');
                 className="text-base"
               />
             </div>
-            <div>
-              <Label htmlFor="language">Language</Label>
-              <Input
-                id="language"
-                placeholder="e.g., 'Marathi'"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="text-base"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="language">Language</Label>
+                <Input
+                  id="language"
+                  placeholder="e.g., 'Marathi'"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="text-base"
+                />
+              </div>
+               <div>
+                <Label htmlFor="grade">Grade Level</Label>
+                <Input
+                  id="grade"
+                  placeholder="e.g., '4th Grade'"
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  className="text-base"
+                />
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-wrap gap-4">
-            <Button onClick={handleGenerate} disabled={isLoading || !prompt || !language}>
+            <Button onClick={handleGenerate} disabled={isLoading || !prompt || !language || !grade}>
               {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
               Generate Story & Images
             </Button>
@@ -350,5 +367,3 @@ setActiveTab('translation');
       </div>
     </main>
   );
-
-    
