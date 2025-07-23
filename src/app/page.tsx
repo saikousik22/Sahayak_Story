@@ -6,7 +6,9 @@ import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { generateStory } from '@/ai/flows/generate-story';
 import { translateToEnglish } from '@/ai/flows/translate-to-english';
-import { generateImageFromStory } from '@/ai/flows/generate-image-from-story';
+import { generateImageFromStory, GenerateImageFromStoryInput } from '@/ai/flows/generate-image-from-story';
+import { splitStory, SplitStoryOutput } from '@/ai/flows/split-story';
+
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,12 +43,18 @@ const OutputSkeleton = () => (
   </Card>
 );
 
+interface StoryPart {
+  part: 'Beginning' | 'Middle' | 'End';
+  text: string;
+  image: string;
+}
+
 export default function SahayakAI() {
   const [prompt, setPrompt] = useState('');
   const [language, setLanguage] = useState('Marathi');
   const [generatedStory, setGeneratedStory] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [storyParts, setStoryParts] = useState<StoryPart[]>([]);
   const [activeTab, setActiveTab] = useState('story');
   
   const [isGenerating, startGenerating] = useTransition();
@@ -68,19 +76,36 @@ export default function SahayakAI() {
     startGenerating(async () => {
       try {
         setGeneratedStory('');
-        setImageUrls([]);
+        setStoryParts([]);
         setEnglishTranslation('');
         
         const storyResult = await generateStory({ prompt, language });
         if (storyResult && storyResult.story) {
           setGeneratedStory(storyResult.story);
           setActiveTab('story');
-          
-          const imageResult = await generateImageFromStory({ story: storyResult.story });
-          if (imageResult && imageResult.images && imageResult.images.length > 0) {
-            setImageUrls(imageResult.images);
+
+          const splitStoryResult = await splitStory({ story: storyResult.story });
+
+          if (splitStoryResult) {
+            const parts: SplitStoryOutput = splitStoryResult;
+            const imagePrompts: GenerateImageFromStoryInput[] = [
+              { story: parts.beginning, part: 'Beginning' },
+              { story: parts.middle, part: 'Middle' },
+              { story: parts.end, part: 'End' }
+            ];
+
+            const imagePromises = imagePrompts.map(prompt => generateImageFromStory(prompt));
+            const imageResults = await Promise.all(imagePromises);
+
+            const newStoryParts: StoryPart[] = imageResults.map((result, index) => ({
+              part: imagePrompts[index].part as 'Beginning' | 'Middle' | 'End',
+              text: (parts as any)[imagePrompts[index].part.toLowerCase()],
+              image: result.image
+            }));
+            
+            setStoryParts(newStoryParts);
           } else {
-             toast({ title: "Image Generation Failed", description: "Could not generate an image for the story.", variant: "destructive" });
+            toast({ title: "Story Splitting Failed", description: "Could not split the story.", variant: "destructive" });
           }
         } else {
           toast({ title: "Story Generation Failed", description: "Could not generate a story from your prompt.", variant: "destructive" });
@@ -219,23 +244,27 @@ export default function SahayakAI() {
                 </TabsList>
                 <TabsContent value="story">
                   <div ref={storyContentRef} className="mt-4 p-6 rounded-lg bg-background">
-                    {imageUrls.length > 0 && (
-                      <Carousel className="mb-6 overflow-hidden rounded-lg border shadow-md">
-                        <CarouselContent>
-                          {imageUrls.map((url, index) => (
-                            <CarouselItem key={index}>
-                              <Image src={url} alt={`Generated illustration for the story ${index + 1}`} width={800} height={450} className="w-full object-cover" data-ai-hint="story illustration" />
-                            </CarouselItem>
-                          ))}
-                        </CarouselContent>
-                        <CarouselPrevious />
-                        <CarouselNext />
-                      </Carousel>
+                    {storyParts.length > 0 ? (
+                      <div className="space-y-8">
+                        {storyParts.map((part, index) => (
+                          <div key={index}>
+                            <Image 
+                              src={part.image} 
+                              alt={`Illustration for the ${part.part.toLowerCase()} of the story`} 
+                              width={800} 
+                              height={450} 
+                              className="w-full object-cover rounded-lg mb-4"
+                              data-ai-hint={`story ${part.part.toLowerCase()}`} />
+                            <h3 className="font-headline text-xl mb-2">{part.part}</h3>
+                            <p className="text-lg leading-relaxed whitespace-pre-wrap">{part.text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-64">
+                         <p className="text-lg leading-relaxed whitespace-pre-wrap">{generatedStory}</p>
+                      </ScrollArea>
                     )}
-                    <h3 className="font-headline text-xl mb-4">Story</h3>
-                    <ScrollArea className="h-64">
-                       <p className="text-lg leading-relaxed whitespace-pre-wrap">{generatedStory}</p>
-                    </ScrollArea>
                   </div>
                 </TabsContent>
                 <TabsContent value="translation">
