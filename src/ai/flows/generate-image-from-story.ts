@@ -12,8 +12,12 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GenerateImageFromStoryInputSchema = z.object({
-  story: z.string().describe('The part of the story to generate an image from.'),
-  part: z.string().describe('The part of the story this is (e.g., Beginning, Middle, End).'),
+  story: z
+    .string()
+    .describe('The part of the story to generate an image from.'),
+  part: z
+    .string()
+    .describe('The part of the story this is (e.g., Beginning, Middle, End).'),
 });
 export type GenerateImageFromStoryInput = z.infer<
   typeof GenerateImageFromStoryInputSchema
@@ -23,7 +27,7 @@ const GenerateImageFromStoryOutputSchema = z.object({
   image: z
     .string()
     .describe(
-      "The generated image as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "The generated image as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
 });
 export type GenerateImageFromStoryOutput = z.infer<
@@ -43,10 +47,12 @@ const generateImageFromStoryFlow = ai.defineFlow(
     outputSchema: GenerateImageFromStoryOutputSchema,
   },
   async input => {
-    const imagePrompt = `Generate an image related to the following text. The image should not contain any text, letters, or words.
-    
-Text:
-${input.story}`;
+    const imagePrompt = `Create a beautiful and relevant illustration for the following part of a story. The image should be in a cinematic, visually rich style, capturing the essence of the text.
+
+**Crucially, the image MUST NOT contain any text, letters, or words whatsoever.**
+
+Story Text:
+"${input.story}"`;
 
     const result = await ai.generate({
       model: 'googleai/gemini-2.0-flash-preview-image-generation',

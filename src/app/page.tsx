@@ -13,7 +13,6 @@ import { splitStory, SplitStoryOutput } from '@/ai/flows/split-story';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -50,7 +49,6 @@ interface StoryPart {
 
 export default function SahayakAI() {
   const [prompt, setPrompt] = useState('');
-  const [language, setLanguage] = useState('Marathi');
   const [generatedStory, setGeneratedStory] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
   const [storyParts, setStoryParts] = useState<StoryPart[]>([]);
@@ -67,10 +65,6 @@ export default function SahayakAI() {
       toast({ title: "Prompt is empty", description: "Please enter a prompt to generate a story.", variant: "destructive" });
       return;
     }
-    if (!language) {
-      toast({ title: "Language is empty", description: "Please enter a language to generate the story in.", variant: "destructive" });
-      return;
-    }
 
     startGenerating(async () => {
       try {
@@ -78,7 +72,7 @@ export default function SahayakAI() {
         setStoryParts([]);
         setEnglishTranslation('');
         
-        const storyResult = await generateStory({ prompt, language });
+        const storyResult = await generateStory({ prompt });
         if (storyResult && storyResult.story) {
           setGeneratedStory(storyResult.story);
           setActiveTab('story');
@@ -165,7 +159,6 @@ export default function SahayakAI() {
 
         // Add Image
         try {
-          // Using a regular Image object as `window.Image` can be problematic in some environments
           const img = document.createElement('img');
           img.crossOrigin = 'Anonymous';
           
@@ -230,7 +223,7 @@ export default function SahayakAI() {
         <Card className="shadow-lg border-2 border-accent/20">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Create Your Content</CardTitle>
-            <CardDescription>Enter a story idea and a language to generate a story with an illustration.</CardDescription>
+            <CardDescription>Enter a story idea to generate a story with illustrations.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              <div>
@@ -244,21 +237,11 @@ export default function SahayakAI() {
                 className="text-base"
               />
             </div>
-            <div>
-              <Label htmlFor="language">Language</Label>
-              <Input
-                id="language"
-                placeholder="e.g., 'Marathi', 'Hindi', 'Spanish'"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="text-base"
-              />
-            </div>
           </CardContent>
           <CardFooter className="flex flex-wrap gap-4">
-            <Button onClick={handleGenerate} disabled={isLoading || !prompt || !language}>
+            <Button onClick={handleGenerate} disabled={isLoading || !prompt}>
               {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
-              Generate Story & Image
+              Generate Story & Images
             </Button>
             <Button onClick={handleTranslate} disabled={isLoading || (!prompt && !generatedStory)} variant="secondary">
               {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
@@ -274,7 +257,7 @@ export default function SahayakAI() {
             <CardHeader className="flex-col sm:flex-row justify-between items-start gap-4">
               <div>
                 <CardTitle className="font-headline text-2xl">Generated Content</CardTitle>
-                <CardDescription>View your generated story, image, and translation below.</CardDescription>
+                <CardDescription>View your generated story, images, and translation below.</CardDescription>
               </div>
               {generatedStory && (
                  <Button onClick={handleDownloadPdf}>
