@@ -200,11 +200,15 @@ setActiveTab('translation');
 
         // Add Text as an image
         if (textElement) {
+          const originalColor = textElement.style.color;
+          textElement.style.color = 'black';
           try {
             const canvas = await html2canvas(textElement, {
-              backgroundColor: null, // Transparent background
-              scale: 2, // Higher resolution
+              backgroundColor: null, 
+              scale: 2, 
             });
+            textElement.style.color = originalColor;
+
             const textImgData = canvas.toDataURL('image/png');
             const textImgWidth = canvas.width;
             const textImgHeight = canvas.height;
@@ -220,6 +224,7 @@ setActiveTab('translation');
             yPos += textImgDisplayHeight + 5;
 
           } catch (e) {
+            textElement.style.color = originalColor;
             console.error("Error adding text screenshot to PDF", e);
           }
         }
