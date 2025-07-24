@@ -10,6 +10,7 @@ import { translateToEnglish } from '@/ai/flows/translate-to-english';
 import { generateImageFromStory, GenerateImageFromStoryInput } from '@/ai/flows/generate-image-from-story';
 import { splitStory, SplitStoryOutput } from '@/ai/flows/split-story';
 import { textToSpeech } from '@/ai/flows/text-to-speech';
+import { createVideo } from '@/lib/create-video';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,6 +67,7 @@ export default function SahayakAI() {
   const [isGenerating, startGenerating] = useTransition();
   const [isTranslating, startTranslating] = useTransition();
   const [isGeneratingRichContent, startGeneratingRichContent] = useTransition();
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
 
   const storyPartRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { toast } = useToast();
@@ -190,6 +192,32 @@ export default function SahayakAI() {
       }
     });
   }
+
+  const handleDownloadVideo = async () => {
+    if (!canPlaySlideshow) {
+      toast({ title: "Error", description: "Story parts with images and audio are not ready.", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingVideo(true);
+    try {
+      toast({ title: "Video Generation Started", description: "Your video is being created in your browser. This may take a moment." });
+      const videoBlob = await createVideo(storyParts);
+      const url = URL.createObjectURL(videoBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sahayak-ai-story.mp4';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Video Downloaded", description: "Your video has been saved." });
+    } catch (error) {
+      console.error("Video creation failed:", error);
+      toast({ title: "Video Creation Failed", description: "Could not create the video. Please try again.", variant: "destructive" });
+    } finally {
+      setIsGeneratingVideo(false);
+    }
+  };
 
   const handleDownloadPdf = async () => {
     if (storyParts.length === 0) {
@@ -370,23 +398,29 @@ export default function SahayakAI() {
                    </Button>
                 )}
                 {canPlaySlideshow && (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <PlayCircle className="mr-2 h-4 w-4" />
-                        Play Slideshow
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl aspect-video p-0">
-                      <DialogHeader className="sr-only">
-                        <DialogTitle>Story Slideshow</DialogTitle>
-                        <DialogDescription>
-                          An interactive slideshow of the generated story with images and audio narration.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <StorySlideshow parts={storyParts} />
-                    </DialogContent>
-                  </Dialog>
+                  <>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <PlayCircle className="mr-2 h-4 w-4" />
+                          Play Slideshow
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-3xl aspect-video p-0">
+                        <DialogHeader className="sr-only">
+                          <DialogTitle>Story Slideshow</DialogTitle>
+                          <DialogDescription>
+                            An interactive slideshow of the generated story with images and audio narration.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <StorySlideshow parts={storyParts} />
+                      </DialogContent>
+                    </Dialog>
+                    <Button onClick={handleDownloadVideo} disabled={isGeneratingVideo}>
+                      {isGeneratingVideo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Video className="mr-2 h-4 w-4" />}
+                      Download Slideshow
+                    </Button>
+                  </>
                 )}
               </div>
             </CardHeader>
