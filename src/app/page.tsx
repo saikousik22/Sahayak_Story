@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useRef, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import Image from 'next/image';
 import { generateStory } from '@/ai/flows/generate-story';
 import { translateToEnglish } from '@/ai/flows/translate-to-english';
@@ -17,9 +17,9 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Languages, Loader2, BookOpen, Volume2, Image as ImageIcon, Video } from 'lucide-react';
+import { Languages, Loader2, BookOpen, Volume2, Image as ImageIcon, Play } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { VideoGenerator } from '@/components/video-generator';
+import { StorySlideshow } from '@/components/story-slideshow';
 
 
 const OutputSkeleton = () => (
@@ -59,11 +59,11 @@ export default function SahayakAI() {
   const [storyParts, setStoryParts] = useState<StoryPart[]>([]);
   const [splitResult, setSplitResult] = useState<SplitStoryOutput | null>(null);
   const [activeTab, setActiveTab] = useState('story');
+  const [showSlideshow, setShowSlideshow] = useState(false);
   
   const [isGenerating, startGenerating] = useTransition();
   const [isTranslating, startTranslating] = useTransition();
   const [isGeneratingRichContent, startGeneratingRichContent] = useTransition();
-  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
 
   const { toast } = useToast();
 
@@ -87,6 +87,7 @@ export default function SahayakAI() {
         setStoryParts([]);
         setEnglishTranslation('');
         setSplitResult(null);
+        setShowSlideshow(false);
         
         const storyResult = await generateStory({ prompt, language, grade });
         if (storyResult && storyResult.story) {
@@ -191,10 +192,12 @@ export default function SahayakAI() {
   const isLoading = isGenerating || isTranslating || isGeneratingRichContent;
   const hasGeneratedContent = generatedStory || englishTranslation;
   const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[0].image && !storyParts[0].audio;
-  const canGenerateVideo = storyParts.every(p => p.image && p.audio);
+  const canPlaySlideshow = storyParts.every(p => p.image && p.audio);
 
 
   return (
+    <>
+    {showSlideshow && <StorySlideshow parts={storyParts} onClose={() => setShowSlideshow(false)} />}
     <main className="flex min-h-screen flex-col items-center bg-background p-4 sm:p-8 md:p-12">
       <div className="w-full max-w-4xl space-y-8">
         <header className="text-center">
@@ -270,21 +273,11 @@ export default function SahayakAI() {
                     Generate Narration & Illustrations
                   </Button>
                 )}
-                 {canGenerateVideo && (
-                  <Button onClick={() => setIsGeneratingVideo(true)} disabled={isGeneratingVideo}>
-                      {isGeneratingVideo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Video className="mr-2 h-4 w-4" />}
-                      Generate & Download Video
+                 {canPlaySlideshow && (
+                  <Button onClick={() => setShowSlideshow(true)}>
+                      <Play className="mr-2 h-4 w-4" />
+                      Play Slideshow
                   </Button>
-                )}
-                {isGeneratingVideo && (
-                   <VideoGenerator
-                        parts={storyParts}
-                        onComplete={() => setIsGeneratingVideo(false)}
-                        onError={(err) => {
-                            toast({ title: "Video Generation Failed", description: err, variant: "destructive" });
-                            setIsGeneratingVideo(false);
-                        }}
-                    />
                 )}
               </div>
             </CardHeader>
@@ -348,5 +341,6 @@ export default function SahayakAI() {
         )}
       </div>
     </main>
+    </>
   );
 }
