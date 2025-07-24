@@ -23,14 +23,6 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
   useEffect(() => {
     const audioElement = audioRef.current;
     if (!audioElement) return;
-    
-    // Set the source for the new slide
-    audioElement.src = currentPart.audio;
-    audioElement.load();
-    
-    if (isPlaying) {
-      audioElement.play().catch(e => console.error("Audio play failed:", e));
-    }
 
     const handleTimeUpdate = () => {
       if (audioElement.duration) {
@@ -46,12 +38,31 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
       }
     };
 
+    // When the slide changes, set the new audio source
+    audioElement.src = currentPart.audio;
+    audioElement.load();
+    setProgress(0); // Reset progress for the new slide
+
+    const playPromise = audioElement.play();
+    if (playPromise !== undefined) {
+      playPromise.then(_ => {
+        // Automatic playback started!
+        setIsPlaying(true);
+      }).catch(error => {
+        // Auto-play was prevented
+        console.error("Audio play failed:", error);
+        setIsPlaying(false);
+      });
+    }
+
+
     audioElement.addEventListener('timeupdate', handleTimeUpdate);
     audioElement.addEventListener('ended', handleAudioEnded);
     
     return () => {
       audioElement.removeEventListener('timeupdate', handleTimeUpdate);
       audioElement.removeEventListener('ended', handleAudioEnded);
+      audioElement.pause(); // Clean up by pausing audio
     };
   }, [currentIndex, currentPart, parts.length]);
 
@@ -85,20 +96,17 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
   const goToPrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
-      setProgress(0); // Reset progress on manual change
     }
   };
 
   const goToNext = () => {
     if (currentIndex < parts.length - 1) {
       setCurrentIndex(prev => prev + 1);
-      setProgress(0); // Reset progress on manual change
     }
   };
   
   const restart = () => {
       setCurrentIndex(0);
-      setProgress(0);
       setIsPlaying(true);
   }
 
@@ -118,9 +126,6 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
           style={{objectFit: 'contain'}}
           className="animate-in fade-in duration-1000"
         />
-         <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 via-black/50 to-transparent">
-             <p className="text-white text-center text-lg drop-shadow-lg">{currentPart.text}</p>
-         </div>
       </div>
       
        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-4">
