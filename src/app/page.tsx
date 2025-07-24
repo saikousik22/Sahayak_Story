@@ -10,8 +10,6 @@ import { translateToEnglish } from '@/ai/flows/translate-to-english';
 import { generateImageFromStory, GenerateImageFromStoryInput } from '@/ai/flows/generate-image-from-story';
 import { splitStory, SplitStoryOutput } from '@/ai/flows/split-story';
 import { textToSpeech } from '@/ai/flows/text-to-speech';
-import { generateVideo, GenerateVideoInput } from '@/ai/flows/generate-video';
-
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,8 +20,10 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Languages, Loader2, FileDown, BookOpen, Volume2, Image as ImageIcon, Video } from 'lucide-react';
+import { Languages, Loader2, FileDown, BookOpen, Volume2, Image as ImageIcon, Video, PlayCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { StorySlideshow } from '@/components/story-slideshow';
+
 
 const OutputSkeleton = () => (
   <Card className="shadow-lg">
@@ -46,7 +46,7 @@ const OutputSkeleton = () => (
   </Card>
 );
 
-interface StoryPart {
+export interface StoryPart {
   part: 'Beginning' | 'Middle' | 'End';
   text: string;
   image: string;
@@ -62,13 +62,10 @@ export default function SahayakAI() {
   const [storyParts, setStoryParts] = useState<StoryPart[]>([]);
   const [splitResult, setSplitResult] = useState<SplitStoryOutput | null>(null);
   const [activeTab, setActiveTab] = useState('story');
-  const [finalVideo, setFinalVideo] = useState('');
-  const [isVideoDialogOpen, setIsVideoDialogOpen] = useState(false);
   
   const [isGenerating, startGenerating] = useTransition();
   const [isTranslating, startTranslating] = useTransition();
   const [isGeneratingRichContent, startGeneratingRichContent] = useTransition();
-  const [isGeneratingVideo, startGeneratingVideo] = useTransition();
 
   const storyPartRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { toast } = useToast();
@@ -93,7 +90,6 @@ export default function SahayakAI() {
         setStoryParts([]);
         setEnglishTranslation('');
         setSplitResult(null);
-        setFinalVideo('');
         
         const storyResult = await generateStory({ prompt, language, grade });
         if (storyResult && storyResult.story) {
@@ -286,40 +282,10 @@ export default function SahayakAI() {
     }
   };
 
-  const handleGenerateVideo = () => {
-    if (!storyParts.every(p => p.image && p.audio)) {
-      toast({ title: "Missing Content", description: "Please generate narration and illustrations for all parts first.", variant: "destructive" });
-      return;
-    }
-    
-    // Clear previous video state and open dialog
-    setFinalVideo('');
-    setIsVideoDialogOpen(true);
-
-    startGeneratingVideo(async () => {
-      try {
-        const input: GenerateVideoInput = {
-          parts: storyParts.map(p => ({ image: p.image, audio: p.audio }))
-        };
-        const result = await generateVideo(input);
-        if (result && result.video) {
-          setFinalVideo(result.video);
-        } else {
-          toast({ title: "Video Generation Failed", description: "Could not create the video.", variant: "destructive" });
-          setIsVideoDialogOpen(false);
-        }
-      } catch (error) {
-        console.error("Video generation failed:", error);
-        toast({ title: "An Error Occurred", description: "Failed to generate the video. Please try again.", variant: "destructive" });
-        setIsVideoDialogOpen(false);
-      }
-    });
-  };
-  
   const isLoading = isGenerating || isTranslating || isGeneratingRichContent;
   const hasGeneratedContent = generatedStory || englishTranslation;
   const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[0].image && !storyParts[0].audio;
-  const canGenerateVideo = storyParts.every(p => p.image && p.audio);
+  const canPlaySlideshow = storyParts.every(p => p.image && p.audio);
 
 
   return (
@@ -371,11 +337,11 @@ export default function SahayakAI() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-wrap gap-4">
-            <Button onClick={handleGenerate} disabled={isLoading || isGeneratingVideo || !prompt || !language || !grade}>
+            <Button onClick={handleGenerate} disabled={isLoading || !prompt || !language || !grade}>
               {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
               Generate Story
             </Button>
-            <Button onClick={handleTranslate} disabled={isLoading || isGeneratingVideo || (!prompt && !generatedStory)} variant="secondary">
+            <Button onClick={handleTranslate} disabled={isLoading || (!prompt && !generatedStory)} variant="secondary">
               {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
               Translate to English
             </Button>
@@ -393,51 +359,27 @@ export default function SahayakAI() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {canGenerateRichContent && (
-                  <Button onClick={handleGenerateRichContent} disabled={isGeneratingRichContent || isGeneratingVideo}>
+                  <Button onClick={handleGenerateRichContent} disabled={isGeneratingRichContent}>
                     {isGeneratingRichContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><ImageIcon className="mr-2 h-4 w-4" /><Volume2 className="mr-2 h-4 w-4" /></>}
                     Generate Narration & Illustrations
                   </Button>
                 )}
                 {generatedStory && (
-                   <Button onClick={handleDownloadPdf} disabled={isGeneratingVideo}>
+                   <Button onClick={handleDownloadPdf}>
                       <FileDown className="mr-2 h-4 w-4" /> Download Story as PDF
                    </Button>
                 )}
-                {canGenerateVideo && (
-                  <Dialog open={isVideoDialogOpen} onOpenChange={setIsVideoDialogOpen}>
+                {canPlaySlideshow && (
+                  <Dialog>
                     <DialogTrigger asChild>
-                      <Button onClick={handleGenerateVideo} disabled={isGeneratingVideo}>
-                        <Video className="mr-2 h-4 w-4" />
-                        Generate Video
+                      <Button>
+                        <PlayCircle className="mr-2 h-4 w-4" />
+                        Play Slideshow
                       </Button>
                     </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                          <DialogTitle>Generated Video</DialogTitle>
-                          <DialogDescription>
-                            Your story has been turned into a video.
-                          </DialogDescription>
-                        </DialogHeader>
-                          {isGeneratingVideo || !finalVideo ? (
-                            <div className="mt-4 flex flex-col items-center justify-center space-y-4 h-64">
-                               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                               <p className="text-muted-foreground">Generating your video... this might take a minute.</p>
-                            </div>
-                          ) : (
-                            <div className="mt-4">
-                              <video src={finalVideo} controls className="w-full rounded-lg" />
-                            </div>
-                          )
-                        }
-                         <DialogClose asChild>
-                           <Button disabled={!finalVideo}>
-                             <a href={finalVideo} download="sahayak-ai-story.mp4">
-                              <FileDown className="mr-2 h-4 w-4" />
-                               Download Video
-                             </a>
-                           </Button>
-                         </DialogClose>
-                      </DialogContent>
+                    <DialogContent className="max-w-3xl aspect-video p-0">
+                      <StorySlideshow parts={storyParts} />
+                    </DialogContent>
                   </Dialog>
                 )}
               </div>

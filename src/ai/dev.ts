@@ -6,4 +6,3 @@ import '@/ai/flows/generate-story.ts';
 import '@/ai/flows/generate-image-from-story.ts';
 import '@/ai/flows/split-story.ts';
 import '@/ai/flows/text-to-speech.ts';
-import '@/ai/flows/generate-video.ts';
