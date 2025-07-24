@@ -378,6 +378,12 @@ export default function SahayakAI() {
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-3xl aspect-video p-0">
+                      <DialogHeader className="sr-only">
+                        <DialogTitle>Story Slideshow</DialogTitle>
+                        <DialogDescription>
+                          An interactive slideshow of the generated story with images and audio narration.
+                        </DialogDescription>
+                      </DialogHeader>
                       <StorySlideshow parts={storyParts} />
                     </DialogContent>
                   </Dialog>
