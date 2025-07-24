@@ -3,9 +3,7 @@
 
 import React, { useState, useRef, useTransition } from 'react';
 import Image from 'next/image';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
-import { generateStory, GenerateStoryOutput } from '@/ai/flows/generate-story';
+import { generateStory } from '@/ai/flows/generate-story';
 import { translateToEnglish } from '@/ai/flows/translate-to-english';
 import { generateImageFromStory, GenerateImageFromStoryInput } from '@/ai/flows/generate-image-from-story';
 import { splitStory, SplitStoryOutput } from '@/ai/flows/split-story';
@@ -13,16 +11,15 @@ import { textToSpeech } from '@/ai/flows/text-to-speech';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Languages, Loader2, FileDown, BookOpen, Volume2, Image as ImageIcon, Video, PlayCircle } from 'lucide-react';
+import { Languages, Loader2, BookOpen, Volume2, Image as ImageIcon, Video } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { StorySlideshow } from '@/components/story-slideshow';
+import { VideoGenerator } from '@/components/video-generator';
 
 
 const OutputSkeleton = () => (
@@ -66,8 +63,8 @@ export default function SahayakAI() {
   const [isGenerating, startGenerating] = useTransition();
   const [isTranslating, startTranslating] = useTransition();
   const [isGeneratingRichContent, startGeneratingRichContent] = useTransition();
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
 
-  const storyPartRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { toast } = useToast();
 
   const handleGenerate = () => {
@@ -129,7 +126,6 @@ export default function SahayakAI() {
       try {
         const parts = splitResult;
         
-        // Translate parts to English for better image generation
         const [beginningEn, middleEn, endEn] = await Promise.all([
             translateToEnglish({text: parts.beginning}),
             translateToEnglish({text: parts.middle}),
@@ -191,101 +187,11 @@ export default function SahayakAI() {
     });
   }
 
-  const handleDownloadPdf = async () => {
-    if (storyParts.length === 0) {
-      toast({ title: "Error", description: "No story to download.", variant: "destructive" });
-      return;
-    }
-
-    try {
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 15;
-      const contentWidth = pageWidth - margin * 2;
-      let yPos = margin;
-
-      for (let i = 0; i < storyParts.length; i++) {
-        const part = storyParts[i];
-        const textElement = storyPartRefs.current[i];
-
-        if (i > 0) {
-           pdf.addPage();
-           yPos = margin;
-        }
-
-        // Add Illustration Image
-        if (part.image) {
-          try {
-            const img = document.createElement('img');
-            img.crossOrigin = 'Anonymous';
-            
-            const imgPromise = new Promise<{width: number, height: number}>((resolve, reject) => {
-               img.onload = () => resolve({width: img.naturalWidth, height: img.naturalHeight});
-               img.onerror = reject;
-               img.src = part.image;
-            });
-            
-            const {width: imgWidth, height: imgHeight} = await imgPromise;
-
-            const aspectRatio = imgWidth / imgHeight;
-            const imgDisplayHeight = contentWidth / aspectRatio;
-
-            if (yPos + imgDisplayHeight > pageHeight - margin) {
-              pdf.addPage();
-              yPos = margin;
-            }
-            
-            pdf.addImage(img, 'PNG', margin, yPos, contentWidth, imgDisplayHeight);
-            yPos += imgDisplayHeight + 5;
-          } catch(e) {
-              console.error("Error adding illustration to PDF", e);
-          }
-        }
-
-        // Add Text as an image
-        if (textElement) {
-          const originalColor = textElement.style.color;
-          textElement.style.color = 'black';
-          try {
-            const canvas = await html2canvas(textElement, {
-              backgroundColor: null, 
-              scale: 2, 
-            });
-            textElement.style.color = originalColor;
-
-            const textImgData = canvas.toDataURL('image/png');
-            const textImgWidth = canvas.width;
-            const textImgHeight = canvas.height;
-            const textAspectRatio = textImgWidth / textImgHeight;
-            const textImgDisplayHeight = contentWidth / textAspectRatio;
-
-            if (yPos + textImgDisplayHeight > pageHeight - margin) {
-              pdf.addPage();
-              yPos = margin;
-            }
-
-            pdf.addImage(textImgData, 'PNG', margin, yPos, contentWidth, textImgDisplayHeight);
-            yPos += textImgDisplayHeight + 5;
-
-          } catch (e) {
-            textElement.style.color = originalColor;
-            console.error("Error adding text screenshot to PDF", e);
-          }
-        }
-      }
-      
-      pdf.save('sahayak-ai-story.pdf');
-    } catch (error) {
-       console.error("PDF download failed:", error);
-       toast({ title: "PDF Download Failed", description: "Could not create PDF. Please try again.", variant: "destructive" });
-    }
-  };
 
   const isLoading = isGenerating || isTranslating || isGeneratingRichContent;
   const hasGeneratedContent = generatedStory || englishTranslation;
   const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[0].image && !storyParts[0].audio;
-  const canPlaySlideshow = storyParts.every(p => p.image && p.audio);
+  const canGenerateVideo = storyParts.every(p => p.image && p.audio);
 
 
   return (
@@ -364,31 +270,21 @@ export default function SahayakAI() {
                     Generate Narration & Illustrations
                   </Button>
                 )}
-                {generatedStory && (
-                   <Button onClick={handleDownloadPdf}>
-                      <FileDown className="mr-2 h-4 w-4" /> Download Story as PDF
-                   </Button>
+                 {canGenerateVideo && (
+                  <Button onClick={() => setIsGeneratingVideo(true)} disabled={isGeneratingVideo}>
+                      {isGeneratingVideo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Video className="mr-2 h-4 w-4" />}
+                      Generate & Download Video
+                  </Button>
                 )}
-                {canPlaySlideshow && (
-                  <>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button>
-                          <PlayCircle className="mr-2 h-4 w-4" />
-                          Play Slideshow
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-3xl aspect-video p-0">
-                        <DialogHeader className="sr-only">
-                          <DialogTitle>Story Slideshow</DialogTitle>
-                          <DialogDescription>
-                            An interactive slideshow of the generated story with images and audio narration.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <StorySlideshow parts={storyParts} />
-                      </DialogContent>
-                    </Dialog>
-                  </>
+                {isGeneratingVideo && (
+                   <VideoGenerator
+                        parts={storyParts}
+                        onComplete={() => setIsGeneratingVideo(false)}
+                        onError={(err) => {
+                            toast({ title: "Video Generation Failed", description: err, variant: "destructive" });
+                            setIsGeneratingVideo(false);
+                        }}
+                    />
                 )}
               </div>
             </CardHeader>
@@ -415,7 +311,7 @@ export default function SahayakAI() {
                             ) : (
                               isGeneratingRichContent && <Skeleton className="w-full h-[338px] rounded-lg mb-4" />
                             )}
-                            <div ref={el => storyPartRefs.current[index] = el} className="p-1">
+                            <div>
                               <h3 className="font-headline text-xl mb-2">{part.part}</h3>
                               <p className="text-lg leading-relaxed whitespace-pre-wrap">{part.text}</p>
                             </div>
@@ -454,5 +350,3 @@ export default function SahayakAI() {
     </main>
   );
 }
-
-    
