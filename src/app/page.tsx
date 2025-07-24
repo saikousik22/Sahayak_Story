@@ -5,7 +5,7 @@ import React, { useState, useRef, useTransition } from 'react';
 import Image from 'next/image';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
-import { generateStory } from '@/ai/flows/generate-story';
+import { generateStory, GenerateStoryOutput } from '@/ai/flows/generate-story';
 import { translateToEnglish } from '@/ai/flows/translate-to-english';
 import { generateImageFromStory, GenerateImageFromStoryInput } from '@/ai/flows/generate-image-from-story';
 import { splitStory, SplitStoryOutput } from '@/ai/flows/split-story';
@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Languages, Loader2, FileDown, BookOpen, Volume2 } from 'lucide-react';
+import { Languages, Loader2, FileDown, BookOpen, Volume2, Image as ImageIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const OutputSkeleton = () => (
@@ -58,10 +58,12 @@ export default function SahayakAI() {
   const [generatedStory, setGeneratedStory] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
   const [storyParts, setStoryParts] = useState<StoryPart[]>([]);
+  const [splitResult, setSplitResult] = useState<SplitStoryOutput | null>(null);
   const [activeTab, setActiveTab] = useState('story');
   
   const [isGenerating, startGenerating] = useTransition();
   const [isTranslating, startTranslating] = useTransition();
+  const [isGeneratingRichContent, startGeneratingRichContent] = useTransition();
 
   const storyPartRefs = useRef<(HTMLDivElement | null)[]>([]);
   const { toast } = useToast();
@@ -85,6 +87,7 @@ export default function SahayakAI() {
         setGeneratedStory('');
         setStoryParts([]);
         setEnglishTranslation('');
+        setSplitResult(null);
         
         const storyResult = await generateStory({ prompt, language, grade });
         if (storyResult && storyResult.story) {
@@ -94,41 +97,13 @@ export default function SahayakAI() {
           const splitStoryResult = await splitStory({ story: storyResult.story });
 
           if (splitStoryResult) {
-            const parts: SplitStoryOutput = splitStoryResult;
-
-            // Translate parts to English for better image generation
-            const [beginningEn, middleEn, endEn] = await Promise.all([
-                translateToEnglish({text: parts.beginning}),
-                translateToEnglish({text: parts.middle}),
-                translateToEnglish({text: parts.end})
-            ]);
-
-            const imagePrompts: GenerateImageFromStoryInput[] = [
-              { story: beginningEn.translation, part: 'Beginning' },
-              { story: middleEn.translation, part: 'Middle' },
-              { story: endEn.translation, part: 'End' }
+            setSplitResult(splitStoryResult);
+            const initialParts = [
+              { part: 'Beginning', text: splitStoryResult.beginning, image: '', audio: '' },
+              { part: 'Middle', text: splitStoryResult.middle, image: '', audio: '' },
+              { part: 'End', text: splitStoryResult.end, image: '', audio: '' }
             ];
-
-            const generationPromises = [
-              ...imagePrompts.map(prompt => generateImageFromStory(prompt)),
-              textToSpeech({text: parts.beginning}),
-              textToSpeech({text: parts.middle}),
-              textToSpeech({text: parts.end}),
-            ];
-            
-            const results = await Promise.all(generationPromises);
-            const imageResults = results.slice(0, 3);
-            const audioResults = results.slice(3);
-
-
-            const newStoryParts: StoryPart[] = imageResults.map((result, index) => ({
-              part: imagePrompts[index].part as 'Beginning' | 'Middle' | 'End',
-              text: (parts as any)[imagePrompts[index].part.toLowerCase()],
-              image: (result as any).image,
-              audio: (audioResults[index] as any).audio
-            }));
-            
-            setStoryParts(newStoryParts);
+            setStoryParts(initialParts as StoryPart[]);
           } else {
             toast({ title: "Story Splitting Failed", description: "Could not split the story.", variant: "destructive" });
           }
@@ -141,6 +116,55 @@ export default function SahayakAI() {
       }
     });
   };
+
+  const handleGenerateRichContent = () => {
+    if (!splitResult) {
+      toast({ title: "No story available", description: "Please generate a story first.", variant: "destructive" });
+      return;
+    }
+
+    startGeneratingRichContent(async () => {
+      try {
+        const parts = splitResult;
+        
+        // Translate parts to English for better image generation
+        const [beginningEn, middleEn, endEn] = await Promise.all([
+            translateToEnglish({text: parts.beginning}),
+            translateToEnglish({text: parts.middle}),
+            translateToEnglish({text: parts.end})
+        ]);
+
+        const imagePrompts: GenerateImageFromStoryInput[] = [
+          { story: beginningEn.translation, part: 'Beginning' },
+          { story: middleEn.translation, part: 'Middle' },
+          { story: endEn.translation, part: 'End' }
+        ];
+
+        const generationPromises = [
+          ...imagePrompts.map(p => generateImageFromStory(p)),
+          textToSpeech({text: parts.beginning}),
+          textToSpeech({text: parts.middle}),
+          textToSpeech({text: parts.end}),
+        ];
+        
+        const results = await Promise.all(generationPromises);
+        const imageResults = results.slice(0, 3);
+        const audioResults = results.slice(3);
+
+        const newStoryParts: StoryPart[] = imageResults.map((result, index) => ({
+          part: imagePrompts[index].part as 'Beginning' | 'Middle' | 'End',
+          text: (parts as any)[imagePrompts[index].part.toLowerCase()],
+          image: (result as any).image,
+          audio: (audioResults[index] as any).audio
+        }));
+        
+        setStoryParts(newStoryParts);
+      } catch (error) {
+        console.error("Rich content generation failed:", error);
+        toast({ title: "An Error Occurred", description: "Failed to generate images or audio. Please try again.", variant: "destructive" });
+      }
+    });
+  }
   
   const handleTranslate = () => {
     const textToTranslate = generatedStory || prompt;
@@ -154,7 +178,7 @@ export default function SahayakAI() {
         const translationResult = await translateToEnglish({ text: textToTranslate });
         if (translationResult && translationResult.translation) {
           setEnglishTranslation(translationResult.translation);
-setActiveTab('translation');
+          setActiveTab('translation');
         } else {
           toast({ title: "Translation Failed", description: "Could not translate the text.", variant: "destructive" });
         }
@@ -189,30 +213,32 @@ setActiveTab('translation');
         }
 
         // Add Illustration Image
-        try {
-          const img = document.createElement('img');
-          img.crossOrigin = 'Anonymous';
-          
-          const imgPromise = new Promise<{width: number, height: number}>((resolve, reject) => {
-             img.onload = () => resolve({width: img.naturalWidth, height: img.naturalHeight});
-             img.onerror = reject;
-             img.src = part.image;
-          });
-          
-          const {width: imgWidth, height: imgHeight} = await imgPromise;
+        if (part.image) {
+          try {
+            const img = document.createElement('img');
+            img.crossOrigin = 'Anonymous';
+            
+            const imgPromise = new Promise<{width: number, height: number}>((resolve, reject) => {
+               img.onload = () => resolve({width: img.naturalWidth, height: img.naturalHeight});
+               img.onerror = reject;
+               img.src = part.image;
+            });
+            
+            const {width: imgWidth, height: imgHeight} = await imgPromise;
 
-          const aspectRatio = imgWidth / imgHeight;
-          const imgDisplayHeight = contentWidth / aspectRatio;
+            const aspectRatio = imgWidth / imgHeight;
+            const imgDisplayHeight = contentWidth / aspectRatio;
 
-          if (yPos + imgDisplayHeight > pageHeight - margin) {
-            pdf.addPage();
-            yPos = margin;
+            if (yPos + imgDisplayHeight > pageHeight - margin) {
+              pdf.addPage();
+              yPos = margin;
+            }
+            
+            pdf.addImage(img, 'PNG', margin, yPos, contentWidth, imgDisplayHeight);
+            yPos += imgDisplayHeight + 5;
+          } catch(e) {
+              console.error("Error adding illustration to PDF", e);
           }
-          
-          pdf.addImage(img, 'PNG', margin, yPos, contentWidth, imgDisplayHeight);
-          yPos += imgDisplayHeight + 5;
-        } catch(e) {
-            console.error("Error adding illustration to PDF", e);
         }
 
         // Add Text as an image
@@ -254,7 +280,10 @@ setActiveTab('translation');
     }
   };
   
-  const isLoading = isGenerating || isTranslating;
+  const isLoading = isGenerating || isTranslating || isGeneratingRichContent;
+  const hasGeneratedContent = generatedStory || englishTranslation;
+  const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[0].image && !storyParts[0].audio;
+
 
   return (
     <main className="flex min-h-screen flex-col items-center bg-background p-4 sm:p-8 md:p-12">
@@ -307,7 +336,7 @@ setActiveTab('translation');
           <CardFooter className="flex flex-wrap gap-4">
             <Button onClick={handleGenerate} disabled={isLoading || !prompt || !language || !grade}>
               {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
-              Generate Story & Images
+              Generate Story
             </Button>
             <Button onClick={handleTranslate} disabled={isLoading || (!prompt && !generatedStory)} variant="secondary">
               {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
@@ -318,18 +347,26 @@ setActiveTab('translation');
         
         {isGenerating && <OutputSkeleton />}
 
-        {!isGenerating && (generatedStory || englishTranslation) && (
+        {!isGenerating && hasGeneratedContent && (
           <Card className="shadow-lg animate-in fade-in duration-500 border-2 border-accent/20">
             <CardHeader className="flex-col sm:flex-row justify-between items-start gap-4">
               <div>
                 <CardTitle className="font-headline text-2xl">Generated Content</CardTitle>
                 <CardDescription>View your generated story, images, and translation below.</CardDescription>
               </div>
-              {generatedStory && (
-                 <Button onClick={handleDownloadPdf}>
-                    <FileDown className="mr-2 h-4 w-4" /> Download Story as PDF
-                 </Button>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {canGenerateRichContent && (
+                  <Button onClick={handleGenerateRichContent} disabled={isGeneratingRichContent}>
+                    {isGeneratingRichContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><ImageIcon className="mr-2 h-4 w-4" /><Volume2 className="mr-2 h-4 w-4" /></>}
+                    Generate Narration & Illustrations
+                  </Button>
+                )}
+                {generatedStory && (
+                   <Button onClick={handleDownloadPdf}>
+                      <FileDown className="mr-2 h-4 w-4" /> Download Story as PDF
+                   </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -343,23 +380,29 @@ setActiveTab('translation');
                       <div className="space-y-8">
                         {storyParts.map((part, index) => (
                           <div key={index}>
-                            <Image 
-                              src={part.image} 
-                              alt={`Illustration for the ${part.part.toLowerCase()} of the story`} 
-                              width={600} 
-                              height={338} 
-                              className="w-full object-cover rounded-lg mb-4"
-                              data-ai-hint={`story ${part.part.toLowerCase()}`} />
+                            {part.image ? (
+                              <Image 
+                                src={part.image} 
+                                alt={`Illustration for the ${part.part.toLowerCase()} of the story`} 
+                                width={600} 
+                                height={338} 
+                                className="w-full object-cover rounded-lg mb-4"
+                                data-ai-hint={`story ${part.part.toLowerCase()}`} />
+                            ) : (
+                              isGeneratingRichContent && <Skeleton className="w-full h-[338px] rounded-lg mb-4" />
+                            )}
                             <div ref={el => storyPartRefs.current[index] = el} className="p-1">
                               <h3 className="font-headline text-xl mb-2">{part.part}</h3>
                               <p className="text-lg leading-relaxed whitespace-pre-wrap">{part.text}</p>
                             </div>
-                             {part.audio && (
+                             {part.audio ? (
                               <div className="mt-4">
                                 <audio controls src={part.audio} className="w-full">
                                   Your browser does not support the audio element.
                                 </audio>
                               </div>
+                            ) : (
+                              isGeneratingRichContent && <Skeleton className="w-full h-10 mt-4 rounded-lg" />
                             )}
                           </div>
                         ))}
@@ -386,3 +429,5 @@ setActiveTab('translation');
       </div>
     </main>
   );
+
+    
