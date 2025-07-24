@@ -291,6 +291,10 @@ export default function SahayakAI() {
       toast({ title: "Missing Content", description: "Please generate narration and illustrations for all parts first.", variant: "destructive" });
       return;
     }
+    
+    // Clear previous video state and open dialog
+    setFinalVideo('');
+    setIsVideoDialogOpen(true);
 
     startGeneratingVideo(async () => {
       try {
@@ -300,13 +304,14 @@ export default function SahayakAI() {
         const result = await generateVideo(input);
         if (result && result.video) {
           setFinalVideo(result.video);
-          setIsVideoDialogOpen(true);
         } else {
           toast({ title: "Video Generation Failed", description: "Could not create the video.", variant: "destructive" });
+          setIsVideoDialogOpen(false);
         }
       } catch (error) {
         console.error("Video generation failed:", error);
         toast({ title: "An Error Occurred", description: "Failed to generate the video. Please try again.", variant: "destructive" });
+        setIsVideoDialogOpen(false);
       }
     });
   };
@@ -402,7 +407,7 @@ export default function SahayakAI() {
                   <Dialog open={isVideoDialogOpen} onOpenChange={setIsVideoDialogOpen}>
                     <DialogTrigger asChild>
                       <Button onClick={handleGenerateVideo} disabled={isGeneratingVideo}>
-                        {isGeneratingVideo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Video className="mr-2 h-4 w-4" />}
+                        <Video className="mr-2 h-4 w-4" />
                         Generate Video
                       </Button>
                     </DialogTrigger>
@@ -413,19 +418,19 @@ export default function SahayakAI() {
                             Your story has been turned into a video.
                           </DialogDescription>
                         </DialogHeader>
-                          {finalVideo ? (
-                            <div className="mt-4">
-                              <video src={finalVideo} controls className="w-full rounded-lg" />
-                            </div>
-                          ) : (
-                            <div className="mt-4 flex flex-col items-center justify-center space-y-4">
+                          {isGeneratingVideo || !finalVideo ? (
+                            <div className="mt-4 flex flex-col items-center justify-center space-y-4 h-64">
                                <Loader2 className="h-12 w-12 animate-spin text-primary" />
                                <p className="text-muted-foreground">Generating your video... this might take a minute.</p>
+                            </div>
+                          ) : (
+                            <div className="mt-4">
+                              <video src={finalVideo} controls className="w-full rounded-lg" />
                             </div>
                           )
                         }
                          <DialogClose asChild>
-                           <Button asChild>
+                           <Button disabled={!finalVideo}>
                              <a href={finalVideo} download="sahayak-ai-story.mp4">
                               <FileDown className="mr-2 h-4 w-4" />
                                Download Video
