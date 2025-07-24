@@ -22,61 +22,62 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
 
   useEffect(() => {
     const audioElement = audioRef.current;
+    if (!audioElement) return;
+    
+    // Set the source for the new slide
+    audioElement.src = currentPart.audio;
+    audioElement.load();
+    
+    if (isPlaying) {
+      audioElement.play().catch(e => console.error("Audio play failed:", e));
+    }
 
     const handleTimeUpdate = () => {
-      if (audioElement && audioElement.duration) {
+      if (audioElement.duration) {
         setProgress((audioElement.currentTime / audioElement.duration) * 100);
       }
     };
 
     const handleAudioEnded = () => {
       if (currentIndex < parts.length - 1) {
-        setCurrentIndex(currentIndex + 1);
+        setCurrentIndex(prev => prev + 1);
       } else {
-        setIsPlaying(false); // End of story, stop playing.
+        setIsPlaying(false); // End of story
       }
     };
-    
-    const playAudio = () => {
-      if (isPlaying) {
-        audioElement?.play().catch(e => console.error("Audio play failed:", e));
-      }
-    }
 
-    if (audioElement) {
-      // Set the source for the new slide
-      audioElement.src = currentPart.audio;
-      
-      // Add all event listeners
-      audioElement.addEventListener('timeupdate', handleTimeUpdate);
-      audioElement.addEventListener('ended', handleAudioEnded);
-      audioElement.addEventListener('canplaythrough', playAudio);
-
-      // Load the new audio source
-      audioElement.load();
-    }
+    audioElement.addEventListener('timeupdate', handleTimeUpdate);
+    audioElement.addEventListener('ended', handleAudioEnded);
     
-    // Cleanup function to remove event listeners from the audio element
     return () => {
-      if (audioElement) {
-        audioElement.removeEventListener('timeupdate', handleTimeUpdate);
-        audioElement.removeEventListener('ended', handleAudioEnded);
-        audioElement.removeEventListener('canplaythrough', playAudio);
-      }
+      audioElement.removeEventListener('timeupdate', handleTimeUpdate);
+      audioElement.removeEventListener('ended', handleAudioEnded);
     };
-  }, [currentIndex, currentPart, isPlaying, parts.length]);
+  }, [currentIndex, currentPart, parts.length]);
+
+
+  useEffect(() => {
+      const audioElement = audioRef.current;
+      if (!audioElement) return;
+
+      if(isPlaying) {
+          if (audioElement.ended && currentIndex === parts.length -1) {
+              // do nothing, slideshow ended
+          } else {
+            audioElement.play().catch(e => console.error("Audio play failed on toggle:", e));
+          }
+      } else {
+          audioElement.pause();
+      }
+  }, [isPlaying]);
+
 
   const togglePlayPause = () => {
     if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      // If we are at the end and paused, hitting play should restart.
-      if (currentIndex === parts.length - 1 && audioRef.current.ended) {
-        restart();
-        return;
-      }
-      audioRef.current.play().catch(e => console.error("Audio play failed:", e));
+    // If we are at the end and paused, hitting play should restart.
+    if (audioRef.current.ended && currentIndex === parts.length - 1) {
+      restart();
+      return;
     }
     setIsPlaying(!isPlaying);
   };
