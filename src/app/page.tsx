@@ -15,7 +15,7 @@ import { generateVideo, GenerateVideoInput } from '@/ai/flows/generate-video';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -63,6 +63,7 @@ export default function SahayakAI() {
   const [splitResult, setSplitResult] = useState<SplitStoryOutput | null>(null);
   const [activeTab, setActiveTab] = useState('story');
   const [finalVideo, setFinalVideo] = useState('');
+  const [isVideoDialogOpen, setIsVideoDialogOpen] = useState(false);
   
   const [isGenerating, startGenerating] = useTransition();
   const [isTranslating, startTranslating] = useTransition();
@@ -299,6 +300,7 @@ export default function SahayakAI() {
         const result = await generateVideo(input);
         if (result && result.video) {
           setFinalVideo(result.video);
+          setIsVideoDialogOpen(true);
         } else {
           toast({ title: "Video Generation Failed", description: "Could not create the video.", variant: "destructive" });
         }
@@ -309,7 +311,7 @@ export default function SahayakAI() {
     });
   };
   
-  const isLoading = isGenerating || isTranslating || isGeneratingRichContent || isGeneratingVideo;
+  const isLoading = isGenerating || isTranslating || isGeneratingRichContent;
   const hasGeneratedContent = generatedStory || englishTranslation;
   const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[0].image && !storyParts[0].audio;
   const canGenerateVideo = storyParts.every(p => p.image && p.audio);
@@ -364,11 +366,11 @@ export default function SahayakAI() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-wrap gap-4">
-            <Button onClick={handleGenerate} disabled={isLoading || !prompt || !language || !grade}>
+            <Button onClick={handleGenerate} disabled={isLoading || isGeneratingVideo || !prompt || !language || !grade}>
               {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookOpen className="mr-2 h-4 w-4" />}
               Generate Story
             </Button>
-            <Button onClick={handleTranslate} disabled={isLoading || (!prompt && !generatedStory)} variant="secondary">
+            <Button onClick={handleTranslate} disabled={isLoading || isGeneratingVideo || (!prompt && !generatedStory)} variant="secondary">
               {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
               Translate to English
             </Button>
@@ -386,25 +388,24 @@ export default function SahayakAI() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {canGenerateRichContent && (
-                  <Button onClick={handleGenerateRichContent} disabled={isGeneratingRichContent}>
+                  <Button onClick={handleGenerateRichContent} disabled={isGeneratingRichContent || isGeneratingVideo}>
                     {isGeneratingRichContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><ImageIcon className="mr-2 h-4 w-4" /><Volume2 className="mr-2 h-4 w-4" /></>}
                     Generate Narration & Illustrations
                   </Button>
                 )}
                 {generatedStory && (
-                   <Button onClick={handleDownloadPdf}>
+                   <Button onClick={handleDownloadPdf} disabled={isGeneratingVideo}>
                       <FileDown className="mr-2 h-4 w-4" /> Download Story as PDF
                    </Button>
                 )}
                 {canGenerateVideo && (
-                  <Dialog>
+                  <Dialog open={isVideoDialogOpen} onOpenChange={setIsVideoDialogOpen}>
                     <DialogTrigger asChild>
                       <Button onClick={handleGenerateVideo} disabled={isGeneratingVideo}>
                         {isGeneratingVideo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Video className="mr-2 h-4 w-4" />}
                         Generate Video
                       </Button>
                     </DialogTrigger>
-                    {finalVideo && (
                       <DialogContent className="max-w-2xl">
                         <DialogHeader>
                           <DialogTitle>Generated Video</DialogTitle>
@@ -412,17 +413,26 @@ export default function SahayakAI() {
                             Your story has been turned into a video.
                           </DialogDescription>
                         </DialogHeader>
-                        <div className="mt-4">
-                           <video src={finalVideo} controls className="w-full rounded-lg" />
-                        </div>
-                         <Button asChild>
-                           <a href={finalVideo} download="sahayak-ai-story.mp4">
-                            <FileDown className="mr-2 h-4 w-4" />
-                             Download Video
-                           </a>
-                         </Button>
+                          {finalVideo ? (
+                            <div className="mt-4">
+                              <video src={finalVideo} controls className="w-full rounded-lg" />
+                            </div>
+                          ) : (
+                            <div className="mt-4 flex flex-col items-center justify-center space-y-4">
+                               <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                               <p className="text-muted-foreground">Generating your video... this might take a minute.</p>
+                            </div>
+                          )
+                        }
+                         <DialogClose asChild>
+                           <Button asChild>
+                             <a href={finalVideo} download="sahayak-ai-story.mp4">
+                              <FileDown className="mr-2 h-4 w-4" />
+                               Download Video
+                             </a>
+                           </Button>
+                         </DialogClose>
                       </DialogContent>
-                    )}
                   </Dialog>
                 )}
               </div>
@@ -488,5 +498,4 @@ export default function SahayakAI() {
       </div>
     </main>
   );
-
-    
+}

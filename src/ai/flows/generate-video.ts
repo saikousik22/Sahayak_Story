@@ -71,7 +71,7 @@ const generateVideoFlow = ai.defineFlow(
             .addInput(imagePath)
             .loop()
             .addInput(audioPath)
-            .outputOptions(['-shortest', '-pix_fmt yuv420p'])
+            .outputOptions(['-shortest', '-pix_fmt yuv420p', '-vf', 'scale=1280:720'])
             .save(clipPath)
             .on('end', () => {
               clipPaths.push(clipPath);
@@ -85,6 +85,10 @@ const generateVideoFlow = ai.defineFlow(
       }
 
       // Step 2: Merge clips
+      if (clipPaths.length === 0) {
+        throw new Error("No clips were generated to merge.");
+      }
+      
       const finalVideoPath = path.join(tempDir, 'final_video.mp4');
       const merger = fluent();
       clipPaths.forEach(clipPath => {
