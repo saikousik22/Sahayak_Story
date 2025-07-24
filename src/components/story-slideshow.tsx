@@ -17,12 +17,10 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentPart = parts[currentIndex];
 
   useEffect(() => {
-    // We need a stable reference to the audio element for the effect cleanup.
     const audioElement = audioRef.current;
 
     const handleTimeUpdate = () => {
@@ -38,25 +36,35 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
         setIsPlaying(false); // End of story, stop playing.
       }
     };
-
-    if (audioElement) {
-      audioElement.addEventListener('timeupdate', handleTimeUpdate);
-      audioElement.addEventListener('ended', handleAudioEnded);
-      // When the slide changes, update the audio source and play if it was playing.
-      audioElement.src = currentPart.audio;
+    
+    const playAudio = () => {
       if (isPlaying) {
-        audioElement.play().catch(e => console.error("Audio play failed:", e));
+        audioElement?.play().catch(e => console.error("Audio play failed:", e));
       }
     }
+
+    if (audioElement) {
+      // Set the source for the new slide
+      audioElement.src = currentPart.audio;
+      
+      // Add all event listeners
+      audioElement.addEventListener('timeupdate', handleTimeUpdate);
+      audioElement.addEventListener('ended', handleAudioEnded);
+      audioElement.addEventListener('canplaythrough', playAudio);
+
+      // Load the new audio source
+      audioElement.load();
+    }
     
-    // Cleanup function to remove event listeners.
+    // Cleanup function to remove event listeners from the audio element
     return () => {
       if (audioElement) {
         audioElement.removeEventListener('timeupdate', handleTimeUpdate);
         audioElement.removeEventListener('ended', handleAudioEnded);
+        audioElement.removeEventListener('canplaythrough', playAudio);
       }
     };
-  }, [currentIndex, parts, currentPart, isPlaying]);
+  }, [currentIndex, currentPart, isPlaying, parts.length]);
 
   const togglePlayPause = () => {
     if (!audioRef.current) return;
@@ -105,8 +113,8 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
         <Image
           src={currentPart.image}
           alt={`Illustration for ${currentPart.part}`}
-          layout="fill"
-          objectFit="contain"
+          fill
+          style={{objectFit: 'contain'}}
           className="animate-in fade-in duration-1000"
         />
          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 via-black/50 to-transparent">
@@ -142,5 +150,3 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
     </div>
   );
 }
-
-    
