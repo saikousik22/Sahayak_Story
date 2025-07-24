@@ -9,6 +9,7 @@ import { generateStory } from '@/ai/flows/generate-story';
 import { translateToEnglish } from '@/ai/flows/translate-to-english';
 import { generateImageFromStory, GenerateImageFromStoryInput } from '@/ai/flows/generate-image-from-story';
 import { splitStory, SplitStoryOutput } from '@/ai/flows/split-story';
+import { textToSpeech } from '@/ai/flows/text-to-speech';
 
 
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Languages, Loader2, FileDown, BookOpen } from 'lucide-react';
+import { Languages, Loader2, FileDown, BookOpen, Volume2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const OutputSkeleton = () => (
@@ -47,6 +48,7 @@ interface StoryPart {
   part: 'Beginning' | 'Middle' | 'End';
   text: string;
   image: string;
+  audio: string;
 }
 
 export default function SahayakAI() {
@@ -107,13 +109,23 @@ export default function SahayakAI() {
               { story: endEn.translation, part: 'End' }
             ];
 
-            const imagePromises = imagePrompts.map(prompt => generateImageFromStory(prompt));
-            const imageResults = await Promise.all(imagePromises);
+            const generationPromises = [
+              ...imagePrompts.map(prompt => generateImageFromStory(prompt)),
+              textToSpeech({text: parts.beginning}),
+              textToSpeech({text: parts.middle}),
+              textToSpeech({text: parts.end}),
+            ];
+            
+            const results = await Promise.all(generationPromises);
+            const imageResults = results.slice(0, 3);
+            const audioResults = results.slice(3);
+
 
             const newStoryParts: StoryPart[] = imageResults.map((result, index) => ({
               part: imagePrompts[index].part as 'Beginning' | 'Middle' | 'End',
               text: (parts as any)[imagePrompts[index].part.toLowerCase()],
-              image: result.image
+              image: (result as any).image,
+              audio: (audioResults[index] as any).audio
             }));
             
             setStoryParts(newStoryParts);
@@ -342,6 +354,13 @@ setActiveTab('translation');
                               <h3 className="font-headline text-xl mb-2">{part.part}</h3>
                               <p className="text-lg leading-relaxed whitespace-pre-wrap">{part.text}</p>
                             </div>
+                             {part.audio && (
+                              <div className="mt-4">
+                                <audio controls src={part.audio} className="w-full">
+                                  Your browser does not support the audio element.
+                                </audio>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
