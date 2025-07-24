@@ -20,13 +20,21 @@ export function StorySlideshow({ parts, onClose }: StorySlideshowProps) {
   const currentPart = parts[currentIndex];
 
   const goToNext = () => {
+    // Stop the current audio before changing the index
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
     setCurrentIndex((prevIndex) => (prevIndex + 1) % parts.length);
   };
 
   const goToPrevious = () => {
+    // Stop the current audio before changing the index
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
     setCurrentIndex((prevIndex) => (prevIndex - 1 + parts.length) % parts.length);
   };
-
+  
   const restart = () => {
     setCurrentIndex(0);
   }
@@ -91,7 +99,7 @@ export function StorySlideshow({ parts, onClose }: StorySlideshowProps) {
           <Button onClick={goToPrevious} variant="outline" size="icon" className="bg-black/50 text-white border-white/50 hover:bg-white/20">
             <ChevronLeft className="h-6 w-6" />
           </Button>
-          <Button onClick={restart} variant="outline" size="icon" className="bg-black/50 text-white border-white/50 hover:bg-white/20">
+           <Button onClick={restart} variant="outline" size="icon" className="bg-black/50 text-white border-white/50 hover:bg-white/20">
             <RotateCcw className="h-6 w-6" />
           </Button>
           <Button onClick={() => setIsPlaying(!isPlaying)} variant="outline" size="icon" className="bg-black/50 text-white border-white/50 hover:bg-white/20 w-16 h-16">
