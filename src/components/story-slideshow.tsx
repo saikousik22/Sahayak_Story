@@ -36,6 +36,9 @@ export function StorySlideshow({ parts, onClose }: StorySlideshowProps) {
     if (!audio) return;
 
     if (isPlaying) {
+      // When the index changes, the audio source also changes.
+      // We need to explicitly load and play the new source.
+      audio.load();
       audio.play().catch(e => console.error("Playback error:", e));
     } else {
       audio.pause();
@@ -79,6 +82,8 @@ export function StorySlideshow({ parts, onClose }: StorySlideshowProps) {
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
           className="hidden"
+          // Add autoPlay for the very first track
+          autoPlay
         />
         
         {/* Controls */}
