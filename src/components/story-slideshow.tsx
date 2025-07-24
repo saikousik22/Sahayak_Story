@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -15,60 +16,75 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const currentPart = parts[currentIndex];
+
   useEffect(() => {
-    // Start playing when component mounts or index changes
-    if (audioRef.current) {
-      audioRef.current.src = parts[currentIndex].audio;
-      if (isPlaying) {
-        audioRef.current.play().catch(e => console.error("Audio play failed:", e));
-      }
-    }
+    // We need a stable reference to the audio element for the effect cleanup.
+    const audioElement = audioRef.current;
 
-    // Set up progress bar interval
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-    progressIntervalRef.current = setInterval(() => {
-      if (audioRef.current && audioRef.current.duration) {
-        setProgress((audioRef.current.currentTime / audioRef.current.duration) * 100);
+    const handleTimeUpdate = () => {
+      if (audioElement && audioElement.duration) {
+        setProgress((audioElement.currentTime / audioElement.duration) * 100);
       }
-    }, 100);
-
-    return () => {
-      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
     };
 
-  }, [currentIndex, parts, isPlaying]);
+    const handleAudioEnded = () => {
+      if (currentIndex < parts.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+      } else {
+        setIsPlaying(false); // End of story, stop playing.
+      }
+    };
 
-
-  const handleAudioEnded = () => {
-    if (currentIndex < parts.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      setIsPlaying(false); // End of story
+    if (audioElement) {
+      audioElement.addEventListener('timeupdate', handleTimeUpdate);
+      audioElement.addEventListener('ended', handleAudioEnded);
+      // When the slide changes, update the audio source and play if it was playing.
+      audioElement.src = currentPart.audio;
+      if (isPlaying) {
+        audioElement.play().catch(e => console.error("Audio play failed:", e));
+      }
     }
-  };
+    
+    // Cleanup function to remove event listeners.
+    return () => {
+      if (audioElement) {
+        audioElement.removeEventListener('timeupdate', handleTimeUpdate);
+        audioElement.removeEventListener('ended', handleAudioEnded);
+      }
+    };
+  }, [currentIndex, parts, currentPart, isPlaying]);
 
   const togglePlayPause = () => {
-    if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play().catch(e => console.error("Audio play failed:", e));
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      // If we are at the end and paused, hitting play should restart.
+      if (currentIndex === parts.length - 1 && audioRef.current.ended) {
+        restart();
+        return;
       }
-      setIsPlaying(!isPlaying);
+      audioRef.current.play().catch(e => console.error("Audio play failed:", e));
     }
+    setIsPlaying(!isPlaying);
   };
   
   const goToPrevious = () => {
-    setCurrentIndex(prev => Math.max(0, prev - 1));
-    setProgress(0);
+    if (currentIndex > 0) {
+      setCurrentIndex(prev => prev - 1);
+      setProgress(0); // Reset progress on manual change
+    }
   };
 
   const goToNext = () => {
-    setCurrentIndex(prev => Math.min(parts.length - 1, prev + 1));
-    setProgress(0);
+    if (currentIndex < parts.length - 1) {
+      setCurrentIndex(prev => prev + 1);
+      setProgress(0); // Reset progress on manual change
+    }
   };
   
   const restart = () => {
@@ -77,16 +93,12 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
       setIsPlaying(true);
   }
 
-  const currentPart = parts[currentIndex];
-
   return (
     <div className="relative w-full h-full bg-black flex flex-col justify-center items-center overflow-hidden">
       <audio
         ref={audioRef}
-        onEnded={handleAudioEnded}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        src={currentPart.audio}
         preload="auto"
       />
       <div className="w-full h-full relative">
@@ -130,3 +142,5 @@ export function StorySlideshow({ parts }: StorySlideshowProps) {
     </div>
   );
 }
+
+    
