@@ -37,6 +37,26 @@ const prompt = ai.definePrompt({
   prompt: `You are a master storyteller. Generate a culturally relevant, descriptive, detailed, and elaborate story in {{language}} based on the following prompt. The story should be substantial in length, with well-developed characters and a clear plot. The story should be tailored for a student in {{grade}}. Adjust the complexity, vocabulary, and themes accordingly.
   
 Prompt: {{prompt}}`,
+  config: {
+    safetySettings: [
+      {
+        category: 'HARM_CATEGORY_HATE_SPEECH',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_HARASSMENT',
+        threshold: 'BLOCK_NONE',
+      },
+      {
+        category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+        threshold: 'BLOCK_NONE',
+      },
+    ],
+  },
 });
 
 const generateStoryFlow = ai.defineFlow(
