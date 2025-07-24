@@ -15,6 +15,9 @@ import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import fluent from 'fluent-ffmpeg';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+
+fluent.setFfmpegPath(ffmpegInstaller.path);
 
 const VideoPartSchema = z.object({
   image: z.string().describe("The image data URI for a video segment."),
