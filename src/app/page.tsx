@@ -111,12 +111,12 @@ export default function SahayakAI() {
         setSplitResult(null);
         setTeachingKit(null);
         setShowSlideshow(false);
+        setActiveTab('story');
         
         const storyResult = await generateStory({ prompt, language, grade });
         if (storyResult && storyResult.story) {
           setGeneratedStory(storyResult.story);
-          setActiveTab('story');
-
+          
           const splitStoryResult = await splitStory({ story: storyResult.story });
 
           if (splitStoryResult) {
@@ -141,14 +141,14 @@ export default function SahayakAI() {
   };
   
   const handleGenerateTeachingKit = () => {
-    if (!generatedStory) {
-      toast({ title: "No story available", description: "Please generate a story first.", variant: "destructive" });
+    if (!prompt) {
+      toast({ title: "No topic available", description: "Please enter a topic first.", variant: "destructive" });
       return;
     }
 
     startGeneratingKit(async () => {
       try {
-        const kitResult = await generateTeachingKit({ story: generatedStory, language, grade });
+        const kitResult = await generateTeachingKit({ topic: prompt, language, grade });
         if (kitResult) {
           setTeachingKit(kitResult);
           setActiveTab('kit');
@@ -237,7 +237,7 @@ export default function SahayakAI() {
   const isLoading = isGenerating || isTranslating || isGeneratingRichContent || isGeneratingKit;
   const hasGeneratedContent = generatedStory || englishTranslation || teachingKit;
   const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[0].image && !storyParts[0].audio;
-  const canGenerateTeachingKit = generatedStory && !teachingKit;
+  const canGenerateTeachingKit = prompt && !teachingKit;
   const canPlaySlideshow = storyParts.every(p => p.image && p.audio);
 
 
@@ -254,14 +254,14 @@ export default function SahayakAI() {
         <Card className="shadow-lg border-2 border-accent/20">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Create Your Content</CardTitle>
-            <CardDescription>Enter a story idea and language to generate a story with illustrations.</CardDescription>
+            <CardDescription>Enter a topic or story idea and language to generate content.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              <div>
-              <Label htmlFor="story-prompt">Story Idea</Label>
+              <Label htmlFor="story-prompt">Topic / Story Idea</Label>
               <Textarea
                 id="story-prompt"
-                placeholder="e.g., 'a farmer in a small village finding a new way to water his crops.'"
+                placeholder="e.g., 'King Ashoka' or 'a farmer finding a new way to water his crops.'"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 rows={3}
@@ -283,7 +283,7 @@ export default function SahayakAI() {
                 <Label htmlFor="grade">Grade Level</Label>
                 <Input
                   id="grade"
-                  placeholder="e.g., '4th Grade'"
+                  placeholder="e.g., '5th Grade'"
                   value={grade}
                   onChange={(e) => setGrade(e.target.value)}
                   className="text-base"
@@ -300,6 +300,10 @@ export default function SahayakAI() {
               {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Languages className="mr-2 h-4 w-4" />}
               Translate to English
             </Button>
+            <Button onClick={handleGenerateTeachingKit} disabled={isGeneratingKit || !prompt}>
+              {isGeneratingKit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
+              Generate Teaching Kit
+            </Button>
           </CardFooter>
         </Card>
         
@@ -310,19 +314,13 @@ export default function SahayakAI() {
             <CardHeader className="flex-col sm:flex-row justify-between items-start gap-4">
               <div>
                 <CardTitle className="font-headline text-2xl">Generated Content</CardTitle>
-                <CardDescription>View your generated story, images, and translation below.</CardDescription>
+                <CardDescription>View your generated story, images, and teaching kit below.</CardDescription>
               </div>
               <div className="flex flex-wrap gap-2">
                 {canGenerateRichContent && (
                   <Button onClick={handleGenerateRichContent} disabled={isGeneratingRichContent}>
                     {isGeneratingRichContent ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <><ImageIcon className="mr-2 h-4 w-4" /><Volume2 className="mr-2 h-4 w-4" /></>}
                     Generate Narration & Illustrations
-                  </Button>
-                )}
-                 {canGenerateTeachingKit && (
-                  <Button onClick={handleGenerateTeachingKit} disabled={isGeneratingKit}>
-                    {isGeneratingKit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
-                    Generate Teaching Kit
                   </Button>
                 )}
                  {canPlaySlideshow && (
