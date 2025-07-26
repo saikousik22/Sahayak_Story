@@ -8,6 +8,8 @@ import { translateToEnglish } from '@/ai/flows/translate-to-english';
 import { generateImageFromStory, GenerateImageFromStoryInput } from '@/ai/flows/generate-image-from-story';
 import { splitStory, SplitStoryOutput } from '@/ai/flows/split-story';
 import { textToSpeech } from '@/ai/flows/text-to-speech';
+import { generateTeachingKit, GenerateTeachingKitOutput } from '@/ai/flows/generate-teaching-kit';
+import { MermaidDiagram } from '@/components/mermaid-diagram';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,9 +19,11 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Languages, Loader2, BookOpen, Volume2, Image as ImageIcon, Play } from 'lucide-react';
+import { Languages, Loader2, BookOpen, Volume2, Image as ImageIcon, Play, GraduationCap, Brain, Route, PencilRuler, MapPin, Lightbulb, Users, Swords, ClipboardCheck, Puzzle, Gamepad2, Mic2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StorySlideshow } from '@/components/story-slideshow';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 
 const OutputSkeleton = () => (
@@ -50,6 +54,22 @@ export interface StoryPart {
   audio: string;
 }
 
+const activityIcons = {
+  'Role Play': <Swords className="h-8 w-8 text-accent-foreground" />,
+  'Matching Game': <Puzzle className="h-8 w-8 text-accent-foreground" />,
+  'Quiz': <ClipboardCheck className="h-8 w-8 text-accent-foreground" />,
+  'Group Discussion': <Users className="h-8 w-8 text-accent-foreground" />,
+  'Map Pointing': <MapPin className="h-8 w-8 text-accent-foreground" />,
+  'True or False': <Gamepad2 className="h-8 w-8 text-accent-foreground" />,
+};
+
+const tipIcons = {
+  'Regional Connection': <MapPin className="h-8 w-8 text-accent-foreground" />,
+  'Language Support': <Mic2 className="h-8 w-8 text-accent-foreground" />,
+  'Low-resource Classroom': <Lightbulb className="h-8 w-8 text-accent-foreground" />,
+  'Multi-grade Classroom': <Users className="h-8 w-8 text-accent-foreground" />,
+};
+
 export default function SahayakAI() {
   const [prompt, setPrompt] = useState('');
   const [language, setLanguage] = useState('Marathi');
@@ -58,12 +78,14 @@ export default function SahayakAI() {
   const [englishTranslation, setEnglishTranslation] = useState('');
   const [storyParts, setStoryParts] = useState<StoryPart[]>([]);
   const [splitResult, setSplitResult] = useState<SplitStoryOutput | null>(null);
+  const [teachingKit, setTeachingKit] = useState<GenerateTeachingKitOutput | null>(null);
   const [activeTab, setActiveTab] = useState('story');
   const [showSlideshow, setShowSlideshow] = useState(false);
   
   const [isGenerating, startGenerating] = useTransition();
   const [isTranslating, startTranslating] = useTransition();
   const [isGeneratingRichContent, startGeneratingRichContent] = useTransition();
+  const [isGeneratingKit, startGeneratingKit] = useTransition();
 
   const { toast } = useToast();
 
@@ -87,6 +109,7 @@ export default function SahayakAI() {
         setStoryParts([]);
         setEnglishTranslation('');
         setSplitResult(null);
+        setTeachingKit(null);
         setShowSlideshow(false);
         
         const storyResult = await generateStory({ prompt, language, grade });
@@ -113,6 +136,28 @@ export default function SahayakAI() {
       } catch (error) {
         console.error("Generation failed:", error);
         toast({ title: "An Error Occurred", description: "Failed to generate content. Please try again.", variant: "destructive" });
+      }
+    });
+  };
+  
+  const handleGenerateTeachingKit = () => {
+    if (!generatedStory) {
+      toast({ title: "No story available", description: "Please generate a story first.", variant: "destructive" });
+      return;
+    }
+
+    startGeneratingKit(async () => {
+      try {
+        const kitResult = await generateTeachingKit({ story: generatedStory, language, grade });
+        if (kitResult) {
+          setTeachingKit(kitResult);
+          setActiveTab('kit');
+        } else {
+          toast({ title: "Teaching Kit Failed", description: "Could not generate the teaching kit.", variant: "destructive" });
+        }
+      } catch (error) {
+        console.error("Teaching kit generation failed:", error);
+        toast({ title: "An Error Occurred", description: "Failed to generate teaching kit. Please try again.", variant: "destructive" });
       }
     });
   };
@@ -189,9 +234,10 @@ export default function SahayakAI() {
   }
 
 
-  const isLoading = isGenerating || isTranslating || isGeneratingRichContent;
-  const hasGeneratedContent = generatedStory || englishTranslation;
+  const isLoading = isGenerating || isTranslating || isGeneratingRichContent || isGeneratingKit;
+  const hasGeneratedContent = generatedStory || englishTranslation || teachingKit;
   const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[0].image && !storyParts[0].audio;
+  const canGenerateTeachingKit = generatedStory && !teachingKit;
   const canPlaySlideshow = storyParts.every(p => p.image && p.audio);
 
 
@@ -257,7 +303,7 @@ export default function SahayakAI() {
           </CardFooter>
         </Card>
         
-        {isGenerating && <OutputSkeleton />}
+        {isLoading && !hasGeneratedContent && <OutputSkeleton />}
 
         {!isGenerating && hasGeneratedContent && (
           <Card className="shadow-lg animate-in fade-in duration-500 border-2 border-accent/20">
@@ -273,6 +319,12 @@ export default function SahayakAI() {
                     Generate Narration & Illustrations
                   </Button>
                 )}
+                 {canGenerateTeachingKit && (
+                  <Button onClick={handleGenerateTeachingKit} disabled={isGeneratingKit}>
+                    {isGeneratingKit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GraduationCap className="mr-2 h-4 w-4" />}
+                    Generate Teaching Kit
+                  </Button>
+                )}
                  {canPlaySlideshow && (
                   <Button onClick={() => setShowSlideshow(true)}>
                       <Play className="mr-2 h-4 w-4" />
@@ -283,13 +335,14 @@ export default function SahayakAI() {
             </CardHeader>
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="story" disabled={!generatedStory}>Story</TabsTrigger>
                   <TabsTrigger value="translation" disabled={!englishTranslation}>Translation</TabsTrigger>
+                  <TabsTrigger value="kit" disabled={!teachingKit}>Teaching Kit</TabsTrigger>
                 </TabsList>
                 <TabsContent value="story">
                   <div className="mt-4 p-6 rounded-lg bg-background">
-                    {storyParts.length > 0 ? (
+                    {isGeneratingRichContent || storyParts.length > 0 && storyParts.some(p => p.image) ? (
                       <div className="space-y-8">
                         {storyParts.map((part, index) => (
                           <div key={index}>
@@ -302,7 +355,7 @@ export default function SahayakAI() {
                                 className="w-full object-cover rounded-lg mb-4"
                                 data-ai-hint={`story ${part.part.toLowerCase()}`} />
                             ) : (
-                              isGeneratingRichContent && <Skeleton className="w-full h-[338px] rounded-lg mb-4" />
+                              (isGeneratingRichContent) && <Skeleton className="w-full h-[338px] rounded-lg mb-4" />
                             )}
                             <div>
                               <h3 className="font-headline text-xl mb-2">{part.part}</h3>
@@ -315,7 +368,7 @@ export default function SahayakAI() {
                                 </audio>
                               </div>
                             ) : (
-                              isGeneratingRichContent && <Skeleton className="w-full h-10 mt-4 rounded-lg" />
+                              (isGeneratingRichContent) && <Skeleton className="w-full h-10 mt-4 rounded-lg" />
                             )}
                           </div>
                         ))}
@@ -334,6 +387,111 @@ export default function SahayakAI() {
                       <p className="text-lg leading-relaxed whitespace-pre-wrap">{englishTranslation}</p>
                     </ScrollArea>
                   </div>
+                </TabsContent>
+                 <TabsContent value="kit">
+                   <div className="mt-4 p-2 sm:p-6">
+                    {isGeneratingKit && <OutputSkeleton />}
+                    {teachingKit ? (
+                      <Accordion type="single" collapsible defaultValue="item-1" className="w-full space-y-4">
+                        <AccordionItem value="item-1" className="border rounded-lg">
+                           <AccordionTrigger className="p-4 font-headline text-xl">
+                            <div className="flex items-center gap-2">
+                              <PencilRuler /> Lesson Planner
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="p-4">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Activity</TableHead>
+                                  <TableHead>Objective</TableHead>
+                                  <TableHead>Time (Mins)</TableHead>
+                                  <TableHead>Materials</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {teachingKit.lessonPlanner.map((item, index) => (
+                                  <TableRow key={index}>
+                                    <TableCell className="font-medium">{item.activity}</TableCell>
+                                    <TableCell>{item.objective}</TableCell>
+                                    <TableCell className="text-center">{item.time}</TableCell>
+                                    <TableCell>{item.materials}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </AccordionContent>
+                        </AccordionItem>
+                        
+                        <AccordionItem value="item-2" className="border rounded-lg">
+                          <AccordionTrigger className="p-4 font-headline text-xl">
+                            <div className="flex items-center gap-2">
+                              <Brain /> Mindmap & Roadmap
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="p-4 space-y-8">
+                             <div>
+                               <h3 className="font-headline text-lg mb-2">Mindmap: Key Events in King Ashoka's Life</h3>
+                               <MermaidDiagram chart={teachingKit.mindmap} />
+                             </div>
+                             <div>
+                               <h3 className="font-headline text-lg mb-2">Roadmap: Lesson Flow</h3>
+                               <MermaidDiagram chart={teachingKit.roadmap} />
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        <AccordionItem value="item-3" className="border rounded-lg">
+                          <AccordionTrigger className="p-4 font-headline text-xl">
+                            <div className="flex items-center gap-2">
+                              <GraduationCap /> Curriculum Activities
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              {teachingKit.curriculumActivities.map((activity, index) => (
+                                <Card key={index} className="bg-secondary/50">
+                                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">{activity.type}</CardTitle>
+                                    {activityIcons[activity.type]}
+                                  </CardHeader>
+                                  <CardContent>
+                                    <p className="text-xs text-muted-foreground font-bold">{activity.objective}</p>
+                                    <p className="text-sm mt-2">{activity.description}</p>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                        
+                        <AccordionItem value="item-4" className="border rounded-lg">
+                          <AccordionTrigger className="p-4 font-headline text-xl">
+                            <div className="flex items-center gap-2">
+                              <Lightbulb /> Context-aware Tips
+                            </div>
+                          </AccordionTrigger>
+                           <AccordionContent className="p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {teachingKit.contextAwareTips.map((tip, index) => (
+                                <Card key={index} className="bg-secondary/50">
+                                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">{tip.type}</CardTitle>
+                                    {tipIcons[tip.type]}
+                                  </CardHeader>
+                                  <CardContent>
+                                    <p className="text-sm mt-2">{tip.description}</p>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    ) : (
+                       <p className="text-center text-muted-foreground">Generate a teaching kit to see it here.</p>
+                    )}
+                   </div>
                 </TabsContent>
               </Tabs>
             </CardContent>
