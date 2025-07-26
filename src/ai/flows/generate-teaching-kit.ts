@@ -102,8 +102,8 @@ Topic:
 Generate the following components in a structured JSON format:
 
 1.  **Lesson Planner**: Create a table-like structure with columns for 'Activity', 'Objective', 'Time (in minutes)', and 'Materials'.
-2.  **Mindmap**: Analyze the topic and generate a mindmap diagram using Mermaid.js 'graph TD' syntax. The mindmap must be visually appealing and cover the topic's key elements: main concepts, important figures or events, and key themes. Use clear, concise labels. Also generate a short, descriptive title for the mindmap based on the topic.
-3.  **Roadmap**: Generate a sequential flowchart using Mermaid.js 'graph TD' syntax. It must visualize a generic but effective lesson flow: Warm-up Activity -> Core Concepts -> Group Activity -> Quiz -> Reflection & Takeaway. Use simple icons or emojis in the diagram.
+2.  **Mindmap**: Analyze the topic and generate a mindmap diagram using Mermaid.js 'graph TD' syntax. The mindmap must be visually appealing and cover the topic's key elements: main concepts, important figures or events, and key themes. Use clear, concise labels. Also generate a short, descriptive title for the mindmap based on the topic. IMPORTANT: For all Mermaid syntax, node labels MUST be enclosed in double quotes. For example: A["This is a label"]. This is critical for handling special characters.
+3.  **Roadmap**: Generate a sequential flowchart using Mermaid.js 'graph TD' syntax. It must visualize a generic but effective lesson flow: Warm-up Activity -> Core Concepts -> Group Activity -> Quiz -> Reflection & Takeaway. Use simple icons or emojis in the diagram. IMPORTANT: For all Mermaid syntax, node labels MUST be enclosed in double quotes. For example: A["This is a label"]. This is critical for handling special characters.
 4.  **Curriculum-Based Activities**: Generate a list of diverse activities relevant to the topic. For each, specify its 'type' (e.g., 'Role Play', 'Matching Game'), a brief 'description', and its 'objective'.
 5.  **Context-Aware Tips**: Generate a list of practical teaching tips. For each, specify its 'type' (e.g., 'Regional Connection', 'Language Support') and a 'description'.`,
   config: {
