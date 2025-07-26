@@ -5,14 +5,14 @@ import React, { useCallback, useMemo } from 'react';
 import ReactFlow, {
   Controls,
   Background,
-  MiniMap,
   useNodesState,
   useEdgesState,
   addEdge,
   Connection,
   Edge,
   Node,
-  BackgroundVariant
+  BackgroundVariant,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -21,7 +21,7 @@ interface ReactFlowDiagramProps {
   edges: Edge[];
 }
 
-export function ReactFlowDiagram({ nodes: initialNodes, edges: initialEdges }: ReactFlowDiagramProps) {
+function Flow({ initialNodes, initialEdges }: ReactFlowDiagramProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
@@ -41,7 +41,6 @@ export function ReactFlowDiagram({ nodes: initialNodes, edges: initialEdges }: R
   }
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
       <ReactFlow
         nodes={memoizedNodes}
         edges={memoizedEdges}
@@ -53,9 +52,18 @@ export function ReactFlowDiagram({ nodes: initialNodes, edges: initialEdges }: R
         nodesDraggable={true}
       >
         <Controls />
-        <MiniMap />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
       </ReactFlow>
-    </div>
   );
+}
+
+
+export function ReactFlowDiagram({ nodes, edges }: ReactFlowDiagramProps) {
+    return (
+        <div style={{ width: '100%', height: '100%' }}>
+            <ReactFlowProvider>
+                <Flow initialNodes={nodes} initialEdges={edges} />
+            </ReactFlowProvider>
+        </div>
+    )
 }
