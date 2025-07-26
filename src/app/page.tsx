@@ -431,7 +431,7 @@ export default function SahayakAI() {
                           </AccordionTrigger>
                           <AccordionContent className="p-4 space-y-8">
                              <div>
-                               <h3 className="font-headline text-lg mb-2">Mindmap: Key Events in King Ashoka's Life</h3>
+                               <h3 className="font-headline text-lg mb-2">{teachingKit.mindmapTitle}</h3>
                                <MermaidDiagram chart={teachingKit.mindmap} />
                              </div>
                              <div>

@@ -61,6 +61,7 @@ const GenerateTeachingKitOutputSchema = z.object({
     .describe(
       'A structured lesson plan with activities, objectives, timings, and materials.'
     ),
+  mindmapTitle: z.string().describe('A concise title for the mindmap, based on the story.'),
   mindmap: z
     .string()
     .describe(
@@ -101,7 +102,7 @@ Story:
 Generate the following components in a structured JSON format:
 
 1.  **Lesson Planner**: Create a table-like structure with columns for 'Activity', 'Objective', 'Time (in minutes)', and 'Materials'.
-2.  **Mindmap**: Analyze the story and generate a mindmap diagram using Mermaid.js 'graph TD' syntax. The mindmap must be visually appealing and cover the story's key elements: main characters, setting, key plot events, conflict, and resolution or main theme. Use clear, concise labels.
+2.  **Mindmap**: Analyze the story and generate a mindmap diagram using Mermaid.js 'graph TD' syntax. The mindmap must be visually appealing and cover the story's key elements: main characters, setting, key plot events, conflict, and resolution or main theme. Use clear, concise labels. Also generate a short, descriptive title for the mindmap.
 3.  **Roadmap**: Generate a sequential flowchart using Mermaid.js 'graph TD' syntax. It must visualize a generic but effective lesson flow: Warm-up Activity -> Story Session -> Group Activity -> Quiz -> Reflection & Takeaway. Use simple icons or emojis in the diagram.
 4.  **Curriculum-Based Activities**: Generate a list of diverse activities relevant to the story. For each, specify its 'type' (e.g., 'Role Play', 'Matching Game'), a brief 'description', and its 'objective'.
 5.  **Context-Aware Tips**: Generate a list of practical teaching tips. For each, specify its 'type' (e.g., 'Regional Connection', 'Language Support') and a 'description'.`,
