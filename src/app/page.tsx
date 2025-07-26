@@ -9,7 +9,7 @@ import { generateImageFromStory, GenerateImageFromStoryInput } from '@/ai/flows/
 import { splitStory, SplitStoryOutput } from '@/ai/flows/split-story';
 import { textToSpeech } from '@/ai/flows/text-to-speech';
 import { generateTeachingKit, GenerateTeachingKitOutput } from '@/ai/flows/generate-teaching-kit';
-import { MermaidDiagram } from '@/components/mermaid-diagram';
+import { ReactFlowDiagram } from '@/components/react-flow-diagram';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -430,11 +430,21 @@ export default function SahayakAI() {
                           <AccordionContent className="p-4 space-y-8">
                              <div>
                                <h3 className="font-headline text-lg mb-2">{teachingKit.mindmapTitle}</h3>
-                               <MermaidDiagram chart={teachingKit.mindmap} />
+                               <div className="w-full h-[400px] rounded-lg bg-muted/30 border">
+                                <ReactFlowDiagram
+                                    nodes={teachingKit.mindmap.nodes}
+                                    edges={teachingKit.mindmap.edges}
+                                />
+                               </div>
                              </div>
                              <div>
                                <h3 className="font-headline text-lg mb-2">Roadmap: Lesson Flow</h3>
-                               <MermaidDiagram chart={teachingKit.roadmap} />
+                               <div className="w-full h-[200px] rounded-lg bg-muted/30 border">
+                                <ReactFlowDiagram
+                                    nodes={teachingKit.roadmap.nodes}
+                                    edges={teachingKit.roadmap.edges}
+                                />
+                               </div>
                             </div>
                           </AccordionContent>
                         </AccordionItem>

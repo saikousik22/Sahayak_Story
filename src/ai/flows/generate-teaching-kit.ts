@@ -55,6 +55,29 @@ const ContextAwareTipSchema = z.object({
     .describe('A brief description of the teaching tip.'),
 });
 
+const ReactFlowNodeSchema = z.object({
+    id: z.string(),
+    position: z.object({ x: z.number(), y: z.number() }),
+    data: z.object({ label: z.string() }),
+    style: z.object({
+        width: z.number().optional(),
+    }).optional(),
+});
+
+const ReactFlowEdgeSchema = z.object({
+    id: z.string(),
+    source: z.string(),
+    target: z.string(),
+    animated: z.boolean().optional(),
+    type: z.string().optional(),
+});
+
+const ReactFlowDiagramSchema = z.object({
+    nodes: z.array(ReactFlowNodeSchema),
+    edges: z.array(ReactFlowEdgeSchema),
+});
+
+
 const GenerateTeachingKitOutputSchema = z.object({
   lessonPlanner: z
     .array(LessonPlannerSchema)
@@ -62,16 +85,8 @@ const GenerateTeachingKitOutputSchema = z.object({
       'A structured lesson plan with activities, objectives, timings, and materials.'
     ),
   mindmapTitle: z.string().describe('A concise title for the mindmap, based on the topic.'),
-  mindmap: z
-    .string()
-    .describe(
-      'A mindmap of the topic in Mermaid.js graph TD syntax. It must cover the key concepts, figures, and themes of the topic.'
-    ),
-  roadmap: z
-    .string()
-    .describe(
-      'A sequential roadmap flowchart of the lesson in Mermaid.js graph TD syntax with icons. Steps: Introduction -> Core Concepts -> Activity Time -> Reflection -> Assessment.'
-    ),
+  mindmap: ReactFlowDiagramSchema.describe('A mindmap of the topic in React Flow format. It must cover the key concepts, figures, and themes of the topic.'),
+  roadmap: ReactFlowDiagramSchema.describe('A sequential roadmap flowchart of the lesson in React Flow format. Steps: Introduction -> Core Concepts -> Activity Time -> Reflection -> Assessment.'),
   curriculumActivities: z
     .array(CurriculumActivitySchema)
     .describe('A list of curriculum-based activities.'),
@@ -99,11 +114,17 @@ const prompt = ai.definePrompt({
 Topic:
 {{topic}}
 
-Generate the following components in a structured JSON format:
+Generate the following components in a structured JSON format for React Flow:
 
 1.  **Lesson Planner**: Create a table-like structure with columns for 'Activity', 'Objective', 'Time (in minutes)', and 'Materials'.
-2.  **Mindmap**: Analyze the topic and generate a mindmap diagram using Mermaid.js 'graph TD' syntax. The mindmap must be visually appealing and cover the topic's key elements: main concepts, important figures or events, and key themes. Use clear, concise labels. Also generate a short, descriptive title for the mindmap based on the topic. IMPORTANT: For all Mermaid syntax, node labels MUST be enclosed in double quotes. For example: A["This is a label"]. This is critical for handling special characters.
-3.  **Roadmap**: Generate a sequential flowchart using Mermaid.js 'graph TD' syntax. It must visualize a generic but effective lesson flow: Warm-up Activity -> Core Concepts -> Group Activity -> Quiz -> Reflection & Takeaway. Use simple icons or emojis in the diagram. IMPORTANT: For all Mermaid syntax, node labels MUST be enclosed in double quotes. For example: A["This is a label"]. This is critical for handling special characters.
+2.  **Mindmap**: Analyze the topic and generate a mindmap diagram as a React Flow data structure (nodes and edges).
+    -   The nodes should have an 'id', 'position' {x, y}, and 'data' {label}. The root node should be at position {x: 0, y: 0}. Arrange other nodes radially around the center.
+    -   The edges should have an 'id', 'source' node id, and 'target' node id. Edges should be of type 'smoothstep'.
+    -   The mindmap must cover the topic's key elements: main concepts, important figures/events, and key themes. Use clear, concise labels. Also generate a short, descriptive title for the mindmap based on the topic.
+3.  **Roadmap**: Generate a sequential flowchart as a React Flow data structure.
+    -   It must visualize a generic but effective lesson flow: Introduction -> Core Concepts -> Activity Time -> Reflection -> Assessment.
+    -   Arrange nodes horizontally with increasing x positions (e.g., 0, 250, 500, 750, 1000) and a constant y position.
+    -   Edges should be animated and of type 'smoothstep'.
 4.  **Curriculum-Based Activities**: Generate a list of diverse activities relevant to the topic. For each, specify its 'type' (e.g., 'Role Play', 'Matching Game'), a brief 'description', and its 'objective'.
 5.  **Context-Aware Tips**: Generate a list of practical teaching tips. For each, specify its 'type' (e.g., 'Regional Connection', 'Language Support') and a 'description'.`,
   config: {
