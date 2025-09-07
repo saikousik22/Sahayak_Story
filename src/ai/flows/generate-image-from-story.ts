@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Generates an image based on a given story.
+ * @fileOverview Generates an image based on a given story and a character reference image.
  *
  * - generateImageFromStory - A function that generates an image from a story.
  * - GenerateImageFromStoryInput - The input type for the generateImageFromStory function.
@@ -18,6 +18,12 @@ const GenerateImageFromStoryInputSchema = z.object({
   part: z
     .string()
     .describe('The part of the story this is (e.g., Beginning, Middle, End).'),
+  characterImage: z
+    .string()
+    .optional()
+    .describe(
+      "A reference image of the main character as a data URI. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+    ),
 });
 export type GenerateImageFromStoryInput = z.infer<
   typeof GenerateImageFromStoryInputSchema
@@ -47,17 +53,36 @@ const generateImageFromStoryFlow = ai.defineFlow(
     outputSchema: GenerateImageFromStoryOutputSchema,
   },
   async input => {
-    const imagePrompt = `Your primary instruction is to create an image. This image MUST NOT contain any text, letters, or words. This is the most important rule.
+    let imagePrompt;
+    const promptParts: any[] = [];
 
-Create a beautiful, cinematic, and culturally relevant illustration for the following part of a story:
-Part: ${input.part}
-Story Text: "${input.story}"
+    if (input.characterImage) {
+      promptParts.push({media: {url: input.characterImage}});
+      promptParts.push({text: `Your primary instruction is to create a new, beautiful, cinematic, and culturally relevant illustration. This image MUST NOT contain any text, letters, or words. This is the most important rule.
 
-Again, do not include any text in the image. The image should be a pure visual representation.`;
+      Analyze the person in the reference image provided. Your task is to re-imagine and redraw that person as the main character in the following story scene.
+      - Maintain the key facial features and likeness of the person from the reference image.
+      - Adapt their clothing and appearance to fit the historical and cultural context of the story.
+      - Ensure the style, lighting, and atmosphere of your generated image are consistent with a continuous narrative.
+
+      Story Part: ${input.part}
+      Story Text: "${input.story}"
+
+      Again, do not include any text in the image. The image should be a pure visual representation that integrates the reference character into the story world.`});
+    } else {
+       promptParts.push({text: `Your primary instruction is to create an image. This image MUST NOT contain any text, letters, or words. This is the most important rule.
+
+      Create a beautiful, cinematic, and culturally relevant illustration for the following part of a story:
+      Part: ${input.part}
+      Story Text: "${input.story}"
+
+      Again, do not include any text in the image. The image should be a pure visual representation.`});
+    }
+
 
     const result = await ai.generate({
       model: 'googleai/gemini-2.5-flash-image-preview',
-      prompt: imagePrompt,
+      prompt: promptParts,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
         safetySettings: [

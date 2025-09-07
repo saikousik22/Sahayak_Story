@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useRef } from 'react';
 import Image from 'next/image';
 import { generateStory } from '@/ai/flows/generate-story';
 import { translateToEnglish } from '@/ai/flows/translate-to-english';
@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Languages, Loader2, BookOpen, Volume2, Image as ImageIcon, Play, GraduationCap, Brain, Route, PencilRuler, MapPin, Lightbulb, Users, Swords, ClipboardCheck, Puzzle, Gamepad2, Mic2 } from 'lucide-react';
+import { Languages, Loader2, BookOpen, Volume2, Image as ImageIcon, Play, GraduationCap, Brain, Route, PencilRuler, MapPin, Lightbulb, Users, Swords, ClipboardCheck, Puzzle, Gamepad2, Mic2, FileImage, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StorySlideshow } from '@/components/story-slideshow';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -74,6 +74,7 @@ export default function SahayakAI() {
   const [prompt, setPrompt] = useState('');
   const [language, setLanguage] = useState('Marathi');
   const [grade, setGrade] = useState('5th Grade');
+  const [characterImage, setCharacterImage] = useState<string | null>(null);
   const [generatedStory, setGeneratedStory] = useState('');
   const [englishTranslation, setEnglishTranslation] = useState('');
   const [storyParts, setStoryParts] = useState<StoryPart[]>([]);
@@ -81,6 +82,7 @@ export default function SahayakAI() {
   const [teachingKit, setTeachingKit] = useState<GenerateTeachingKitOutput | null>(null);
   const [activeTab, setActiveTab] = useState('story');
   const [showSlideshow, setShowSlideshow] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isGenerating, startGenerating] = useTransition();
   const [isTranslating, startTranslating] = useTransition();
@@ -88,6 +90,17 @@ export default function SahayakAI() {
   const [isGeneratingKit, startGeneratingKit] = useTransition();
 
   const { toast } = useToast();
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCharacterImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleGenerate = () => {
     if (!prompt) {
@@ -113,7 +126,7 @@ export default function SahayakAI() {
         setShowSlideshow(false);
         setActiveTab('story');
         
-        const storyResult = await generateStory({ prompt, language, grade });
+        const storyResult = await generateStory({ prompt, language, grade, characterImage: characterImage || undefined });
         if (storyResult && storyResult.story) {
           setGeneratedStory(storyResult.story);
           
@@ -121,8 +134,11 @@ export default function SahayakAI() {
 
           if (splitStoryResult) {
             setSplitResult(splitStoryResult);
+            // Use the uploaded image for the beginning, if it exists
+            const initialImage = characterImage || '';
+
             const initialParts = [
-              { part: 'Beginning', text: splitStoryResult.beginning, image: '', audio: '' },
+              { part: 'Beginning', text: splitStoryResult.beginning, image: initialImage, audio: '' },
               { part: 'Middle', text: splitStoryResult.middle, image: '', audio: '' },
               { part: 'End', text: splitStoryResult.end, image: '', audio: '' }
             ];
@@ -177,30 +193,33 @@ export default function SahayakAI() {
             translateToEnglish({text: parts.middle}),
             translateToEnglish({text: parts.end})
         ]);
-
+        
+        // Let's generate images for the middle and end, keeping the user's image for the beginning
         const imagePrompts: GenerateImageFromStoryInput[] = [
-          { story: beginningEn.translation, part: 'Beginning' },
-          { story: middleEn.translation, part: 'Middle' },
-          { story: endEn.translation, part: 'End' }
+          { story: middleEn.translation, part: 'Middle', characterImage: characterImage || undefined },
+          { story: endEn.translation, part: 'End', characterImage: characterImage || undefined }
         ];
 
-        const generationPromises = [
-          ...imagePrompts.map(p => generateImageFromStory(p)),
+        const audioPrompts = [
           textToSpeech({text: parts.beginning}),
           textToSpeech({text: parts.middle}),
           textToSpeech({text: parts.end}),
         ];
+
+        const generationPromises = [
+          ...imagePrompts.map(p => generateImageFromStory(p)),
+          ...audioPrompts,
+        ];
         
         const results = await Promise.all(generationPromises);
-        const imageResults = results.slice(0, 3);
-        const audioResults = results.slice(3);
+        const imageResults = results.slice(0, 2);
+        const audioResults = results.slice(2);
 
-        const newStoryParts: StoryPart[] = imageResults.map((result, index) => ({
-          part: imagePrompts[index].part as 'Beginning' | 'Middle' | 'End',
-          text: (parts as any)[imagePrompts[index].part.toLowerCase()],
-          image: (result as any).image,
-          audio: (audioResults[index] as any).audio
-        }));
+        const newStoryParts: StoryPart[] = [
+           { part: 'Beginning', text: parts.beginning, image: characterImage || '', audio: (audioResults[0] as any).audio },
+           { part: 'Middle', text: parts.middle, image: (imageResults[0] as any).image, audio: (audioResults[1] as any).audio },
+           { part: 'End', text: parts.end, image: (imageResults[1] as any).image, audio: (audioResults[2] as any).audio },
+        ];
         
         setStoryParts(newStoryParts);
       } catch (error) {
@@ -236,7 +255,10 @@ export default function SahayakAI() {
 
   const isLoading = isGenerating || isTranslating || isGeneratingRichContent || isGeneratingKit;
   const hasGeneratedContent = generatedStory || englishTranslation || teachingKit;
-  const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[0].image && !storyParts[0].audio;
+  
+  // Can generate rich content if story has been split, but we haven't generated the extra images/audio yet.
+  // We check if the middle part has an image. If not, it means we can generate.
+  const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[1].image;
   const canGenerateTeachingKit = prompt && !teachingKit;
   const canPlaySlideshow = storyParts.every(p => p.image && p.audio);
 
@@ -254,7 +276,7 @@ export default function SahayakAI() {
         <Card className="shadow-lg border-2 border-accent/20">
           <CardHeader>
             <CardTitle className="font-headline text-2xl">Create Your Content</CardTitle>
-            <CardDescription>Enter a topic or story idea and language to generate content.</CardDescription>
+            <CardDescription>Enter a topic, upload a photo, and generate a personalized story.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              <div>
@@ -267,6 +289,36 @@ export default function SahayakAI() {
                 rows={3}
                 className="text-base"
               />
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="character-image">Upload Main Character Image (Optional)</Label>
+                <div className="flex items-center gap-4">
+                    <Input
+                        id="character-image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        ref={fileInputRef}
+                    />
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                        <FileImage className="mr-2 h-4 w-4" />
+                        Choose Image
+                    </Button>
+                    {characterImage && (
+                        <div className="relative">
+                            <Image src={characterImage} alt="Character preview" width={64} height={64} className="rounded-md object-cover" />
+                             <Button
+                                variant="destructive"
+                                size="icon"
+                                className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                                onClick={() => setCharacterImage(null)}
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    )}
+                </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -340,7 +392,7 @@ export default function SahayakAI() {
                 </TabsList>
                 <TabsContent value="story">
                   <div className="mt-4 p-6 rounded-lg bg-background">
-                    {isGeneratingRichContent || storyParts.length > 0 && storyParts.some(p => p.image) ? (
+                    {storyParts.length > 0 ? (
                       <div className="space-y-8">
                         {storyParts.map((part, index) => (
                           <div key={index}>
