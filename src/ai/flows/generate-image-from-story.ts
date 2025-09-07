@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -58,12 +59,13 @@ const generateImageFromStoryFlow = ai.defineFlow(
 
     if (input.characterImage) {
       promptParts.push({media: {url: input.characterImage}});
-      promptParts.push({text: `Your primary instruction is to create a new, beautiful, cinematic, and culturally relevant illustration. This image MUST NOT contain any text, letters, or words. This is the most important rule.
+      promptParts.push({text: `VERY IMPORTANT: The user provided an image to be used as a reference for the main character. Your task is to create a brand new illustration that integrates the character from the reference photo into the story scene described below.
 
-      Analyze the person in the reference image provided. Your task is to re-imagine and redraw that person as the main character in the following story scene.
+      - Analyze the person in the reference image. Your new illustration MUST feature this person as the main character.
       - Maintain the key facial features and likeness of the person from the reference image.
       - Adapt their clothing and appearance to fit the historical and cultural context of the story.
       - Ensure the style, lighting, and atmosphere of your generated image are consistent with a continuous narrative.
+      - The generated image MUST NOT contain any text, letters, or words. This is the most important rule.
 
       Story Part: ${input.part}
       Story Text: "${input.story}"
