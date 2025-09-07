@@ -56,7 +56,7 @@ Story Text: "${input.story}"
 Again, do not include any text in the image. The image should be a pure visual representation.`;
 
     const result = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-preview-image-generation',
+      model: 'googleai/gemini-2.5-flash-image-preview',
       prompt: imagePrompt,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
