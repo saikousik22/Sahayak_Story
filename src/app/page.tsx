@@ -134,11 +134,8 @@ export default function SahayakAI() {
 
           if (splitStoryResult) {
             setSplitResult(splitStoryResult);
-            // Use the uploaded image for the beginning, if it exists
-            const initialImage = characterImage || '';
-
             const initialParts = [
-              { part: 'Beginning', text: splitStoryResult.beginning, image: initialImage, audio: '' },
+              { part: 'Beginning', text: splitStoryResult.beginning, image: '', audio: '' },
               { part: 'Middle', text: splitStoryResult.middle, image: '', audio: '' },
               { part: 'End', text: splitStoryResult.end, image: '', audio: '' }
             ];
@@ -194,8 +191,9 @@ export default function SahayakAI() {
             translateToEnglish({text: parts.end})
         ]);
         
-        // Let's generate images for the middle and end, keeping the user's image for the beginning
+        // Generate a new image for all three parts of the story, using the character reference
         const imagePrompts: GenerateImageFromStoryInput[] = [
+          { story: beginningEn.translation, part: 'Beginning', characterImage: characterImage || undefined },
           { story: middleEn.translation, part: 'Middle', characterImage: characterImage || undefined },
           { story: endEn.translation, part: 'End', characterImage: characterImage || undefined }
         ];
@@ -212,14 +210,15 @@ export default function SahayakAI() {
         ];
         
         const results = await Promise.all(generationPromises);
-        const imageResults = results.slice(0, 2);
-        const audioResults = results.slice(2);
+        const imageResults = results.slice(0, 3);
+        const audioResults = results.slice(3);
 
-        const newStoryParts: StoryPart[] = [
-           { part: 'Beginning', text: parts.beginning, image: characterImage || '', audio: (audioResults[0] as any).audio },
-           { part: 'Middle', text: parts.middle, image: (imageResults[0] as any).image, audio: (audioResults[1] as any).audio },
-           { part: 'End', text: parts.end, image: (imageResults[1] as any).image, audio: (audioResults[2] as any).audio },
-        ];
+        const newStoryParts: StoryPart[] = imageResults.map((result, index) => ({
+          part: imagePrompts[index].part as 'Beginning' | 'Middle' | 'End',
+          text: (parts as any)[imagePrompts[index].part.toLowerCase()],
+          image: (result as any).image,
+          audio: (audioResults[index] as any).audio
+        }));
         
         setStoryParts(newStoryParts);
       } catch (error) {
@@ -256,9 +255,7 @@ export default function SahayakAI() {
   const isLoading = isGenerating || isTranslating || isGeneratingRichContent || isGeneratingKit;
   const hasGeneratedContent = generatedStory || englishTranslation || teachingKit;
   
-  // Can generate rich content if story has been split, but we haven't generated the extra images/audio yet.
-  // We check if the middle part has an image. If not, it means we can generate.
-  const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[1].image;
+  const canGenerateRichContent = splitResult && storyParts.length > 0 && !storyParts[0].image;
   const canGenerateTeachingKit = prompt && !teachingKit;
   const canPlaySlideshow = storyParts.every(p => p.image && p.audio);
 
@@ -392,7 +389,7 @@ export default function SahayakAI() {
                 </TabsList>
                 <TabsContent value="story">
                   <div className="mt-4 p-6 rounded-lg bg-background">
-                    {storyParts.length > 0 ? (
+                    {storyParts.length > 0 && storyParts.some(p => p.image) ? (
                       <div className="space-y-8">
                         {storyParts.map((part, index) => (
                           <div key={index}>

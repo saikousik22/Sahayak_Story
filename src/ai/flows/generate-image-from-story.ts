@@ -54,7 +54,6 @@ const generateImageFromStoryFlow = ai.defineFlow(
     outputSchema: GenerateImageFromStoryOutputSchema,
   },
   async input => {
-    let imagePrompt;
     const promptParts: any[] = [];
 
     if (input.characterImage) {
@@ -107,8 +106,12 @@ const generateImageFromStoryFlow = ai.defineFlow(
         ],
       },
     });
+    
+    if (!result.media) {
+        throw new Error('Image generation failed. The model did not return an image.');
+    }
 
-    const image = result.media!.url!;
+    const image = result.media.url!;
 
     return {image};
   }
